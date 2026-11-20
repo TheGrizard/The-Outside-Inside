@@ -701,7 +701,7 @@ static void view_half(int top, int h, uint16_t bg)
     cv_oy = -top; cv_y0 = 0; cv_y1 = h;  /* view rows top .. top+h-1 into this canvas */
 }
 
-static void ring(float cx, float cy, float rx, float ry, uint16_t c)
+static void draw_ring(float cx, float cy, float rx, float ry, uint16_t c)
 {
     float px = cx + rx, py = cy;
     for (int i = 1; i <= 16; i++) {
@@ -777,7 +777,7 @@ static void draw_scene(void)
         }
         case SK_DOT: s_rect(x, y, s->a + 1, s->a, c); break;
         case SK_SQUARE: s_rect(x - 1, y - 1, s->a > 0 ? s->a : 2, s->a > 0 ? s->a : 2, c); break;
-        case SK_RING: { float r = s->a + (s->b - s->a) * q; ring(x, y, r, r * (s->g > 0 ? s->g : 0.4f), dim(c, 1.0f - q)); break; }
+        case SK_RING: { float r = s->a + (s->b - s->a) * q; draw_ring(x, y, r, r * (s->g > 0 ? s->g : 0.4f), dim(c, 1.0f - q)); break; }
         case SK_DRIP: s_rect(x, y, s->a > 1 ? 2 : 1, 2, c); break;
         case SK_STREAK: s_line(x, y, s->x - s->vx * 0.02f, s->y - s->a, dim(c, 0.8f)); break;
         case SK_FLAKE: s_rect(x, y, 2, 1, RGB(210, 225, 255)); break;

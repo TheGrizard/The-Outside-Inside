@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 # The install site on GitHub Pages (https://TheGrizard.github.io/The-Outside-Inside/): the front page, the web
 # installer, the firmware in the browser and the screen reader's words, made by fm1-base's tools/make_site.py from
-# the newest release's signed package (the one release.yml built, attested and published). Runs when a release
+# the newest release's signed package (the one release.yml built, attested and published), the rest from main. Runs when a release
 # build finishes, when this file changes, or by hand (Actions > Install site > Run workflow).
 name: Install site
 
@@ -11,7 +11,7 @@ on:
     types: [completed]
   push:
     branches: [main]
-    paths: ['.github/workflows/site.yml', 'app/site/**']
+    paths: ['.github/workflows/site.yml', 'app/**']
   workflow_dispatch:
 
 permissions:
@@ -42,11 +42,9 @@ jobs:
           [ -n "$tag" ] && [ "$tag" != null ] || { echo 'no release yet'; exit 1; }
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=${tag#[vV]}" >> "$GITHUB_OUTPUT"
-          # the site's page and emulator from the release's own source (its front page from main's, the newest words)
-          cp -r app/site /tmp/site-src
-          git checkout -q "$tag"
+          # the installer writes the release's signed package; the page, the words and the browser's emulator come
+          # from this commit's source
           git submodule update --init --recursive
-          rm -rf app/site && cp -r /tmp/site-src app/site
           mkdir -p app/build
           gh release download "$tag" --pattern '*.fwsc' --dir app/build
 
