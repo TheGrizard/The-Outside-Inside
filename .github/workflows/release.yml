@@ -46,7 +46,10 @@ jobs:
           flags=(--prerelease=false)
           if [[ "$version" == *-* ]]; then flags=(--prerelease --latest=false); fi
           if draft=$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft); then
-            [[ "$draft" == true ]] || { echo 'Refusing to rebuild a public release'; exit 1; }
+            # a draft; or a release published on GitHub's site with no files yet (publishing it there is what makes
+            # its tag): this build fills it. One with files already is never rebuilt.
+            assets=$(gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets | length')
+            [[ "$draft" == true || "$assets" == 0 ]] || { echo 'Refusing to rebuild a public release'; exit 1; }
           else
             gh release create "$GITHUB_REF_NAME" --verify-tag --draft \
               --title "$TITLE $version" --generate-notes "${flags[@]}"
