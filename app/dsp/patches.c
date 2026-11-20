@@ -764,7 +764,7 @@ static void alien_drone_block(Engine *e, Source *s) {
     v->target = 0.12f + 0.3f * e->eff.activity;
 }
 static void h_alien(Engine *e) {
-    add_passby(e, "craft", craft_fire, 0.035f, 14, 20, 0.25f, 0.55f, 0.08f, 0.0f, GL_CRAFT);   /* (seen, not heard: ALIEN as it was approved, silent craft and all) */
+    add_passby(e, "craft", craft_fire, 0.035f, 14, 20, 0.25f, 0.55f, 0.08f, 0.4f, GL_CRAFT);
     Source *s = engine_add(e, "beacon", L_HUMANS, G_VOICE, B_SCATTER);
     s->rate = 0.22f; s->regular = 1; s->pan_lo = -0.65f; s->pan_hi = -0.55f; s->dist_lo = 0.75f; s->dist_hi = 0.85f;
     s->g.voice.level = 0.4f; s->fire = beacon_fire; s->glyph = GL_BEACON;
