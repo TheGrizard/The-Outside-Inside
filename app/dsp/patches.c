@@ -609,9 +609,9 @@ static void add_trains(Engine *e, float rate, float dlo, float dhi, float len_lo
 static void engines_block(Engine *e, Source *s) {
     Hum *h = &s->g.hum;
     float act = src_tod(e, s) * (0.3f + 1.4f * e->eff.activity) * e->dens[L_HUMANS] * e->gov;
-    static const float F[2] = { 38.0f, 51.0f }, PAN[2] = { -0.5f, 0.45f };
+    static const float F[2] = { 32.0f, 43.0f }, PAN[2] = { -0.5f, 0.45f };
     for (int k = 0; k < 2; k++)
-        if (!h->v[k].on) { hum_start(h, F[k], 0.5f, 2.4f, 0.3f, 0.35f, 600, 5.5f + k, 0.06f, 0, 3.0f); spatial_set(&h->v[k].sp, PAN[k], 0.85f); }   /* (a growl in its overtones: a small speaker hears it) */
+        if (!h->v[k].on) { hum_start(h, F[k], 0.5f, 0.9f, 0.3f, 0.3f, 220, 5.5f + k, 0.06f, 0, 3.0f); spatial_set(&h->v[k].sp, PAN[k], 0.85f); }   /* (deep: a gentle rumble in its overtones, nothing higher) */
     s->user[4] += (rng_bi(&s->rng) * 0.6f - s->user[4]) * BLK * 0.25f;   /* (traffic: a little busier, a little quieter) */
     s->user[5] += (rng_bi(&s->rng) * 0.6f - s->user[5]) * BLK * 0.15f;
     for (int k = 0; k < 2; k++) {
@@ -621,13 +621,13 @@ static void engines_block(Engine *e, Source *s) {
     if (s->user[3] <= 0) {                           /* a rev, now and then: about one in 15 s when it's busy */
         if (rng_f(&s->rng) < act * 0.07f * BLK) {
             engine_var_begin(e, s);
-            int v = hum_start(h, rng_range(&s->rng, 42, 60), 0.5f, 2.2f, 0.4f, 0.4f, 600, 0, 0, 0, 0.25f);
+            int v = hum_start(h, rng_range(&s->rng, 34, 46), 0.5f, 0.9f, 0.4f, 0.3f, 240, 0, 0, 0, 0.25f);
             engine_var_end();
             if (v >= 0) {
                 float pan = rng_range(&s->rng, -0.8f, 0.8f), dist = rng_range(&s->rng, 0.7f, 0.88f);   /* (a few streets away) */
                 spatial_set(&h->v[v].sp, pan, dist);
                 h->v[v].target = 0.02f;                  /* (a voice at nothing switches itself off: it starts just above) */
-                s->user[0] = 0; s->user[1] = rng_range(&s->rng, 2.5f, 4.5f); s->user[2] = rng_range(&s->rng, 1.5f, 2.2f); s->user[3] = (float)(v + 1);
+                s->user[0] = 0; s->user[1] = rng_range(&s->rng, 2.5f, 4.5f); s->user[2] = rng_range(&s->rng, 1.25f, 1.45f); s->user[3] = (float)(v + 1);
                 engine_post(e, L_HUMANS, GL_CAR, pan, dist, 0, 0, s->user[1] * 2.0f);
                 s->events++; e->layer_events[L_HUMANS]++;
             }
@@ -640,14 +640,14 @@ static void engines_block(Engine *e, Source *s) {
     else if (u < 1.0f) env = 0.5f + 0.5f * fm_sin_turns(0.25f + 0.5f * (u - 0.35f) / 0.65f);   /* and back down */
     else env = 0;
     h->v[v].pmul = 1.0f + (s->user[2] - 1.0f) * env * env;
-    h->v[v].index = 2.2f + 1.6f * env;                          /* harder as it revs */
-    h->v[v].noise_cut = 600.0f + 900.0f * env;
+    h->v[v].index = 0.9f + 0.7f * env;                          /* a little harder as it revs, still low */
+    h->v[v].noise_cut = 240.0f + 160.0f * env;
     h->v[v].target = (0.16f + 0.13f * act) * (0.2f + 0.8f * env);   /* (about 5 dB over the murmur at its height) */
     if (u >= 1.0f) { hum_release(h, v, 1.5f); s->user[3] = 0; }
 }
 static void h_city(Engine *e) {
     static const float tod_t[4] = { 0.6f, 1.0f, 0.9f, 0.25f }, tod_c[4] = { 0.6f, 1.0f, 0.9f, 0.3f };
-    Source *s = add_far_noise(e, "traffic roar", 1.8f, 500, 0.11f, 0.45f); memcpy(s->tod, tod_t, sizeof s->tod);
+    Source *s = add_far_noise(e, "traffic roar", 2.0f, 320, 0.11f, 0.45f); memcpy(s->tod, tod_t, sizeof s->tod);
     s = engine_add(e, "distant engines", L_HUMANS, G_HUM, B_BED);
     s->g.hum.level = 0.6f; s->glyph = GL_CAR; s->block = engines_block; memcpy(s->tod, tod_c, sizeof s->tod);
     add_jets(e, 0.025f, 0.35f, 0.6f);
