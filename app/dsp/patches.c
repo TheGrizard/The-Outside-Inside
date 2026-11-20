@@ -580,32 +580,35 @@ static void add_jets(Engine *e, float rate, float dlo, float dhi) {
 }
 static void train_fire(Engine *e, Source *s, float pan, float dist, float x) {
     (void)e; (void)pan; (void)dist; (void)x;
-    s->pb_voice = hum_start(&s->g.hum, rng_range(&s->rng, 70, 90), 1.5f, 0.8f, 0.8f, 0.55f, 600, 0, 0, 0, 3.0f);
-    s->user[4] = rng_range(&s->rng, 0.7f, 1.0f);   /* seconds between bogies */
+    /* a rush of air and rails over a low hum: mostly noise, brightening as it nears (wheels_block) */
+    s->pb_voice = hum_start(&s->g.hum, rng_range(&s->rng, 60, 75), 1.0f, 0.35f, 1.2f, 0.9f, 2400, 0, 0, 0, 1.2f);
+    s->user[4] = rng_range(&s->rng, 0.28f, 0.4f);  /* seconds between bogies: a fast train */
 }
 static void wheels_block(Engine *e, Source *w) {   /* the wheels ride with the train: the source just before this one */
     (void)e;
     Source *t = w - 1;
     if (t->beh != B_PASSBY || !t->pb_on) { w->user[3] = 0; return; }
     float u = t->pb_t / t->pb_len;
+    if (t->pb_voice >= 0) t->g.hum.v[t->pb_voice].noise_cut = 1600.0f + 1600.0f * (u < 0.5f ? 0.4f + 1.2f * u : 1.6f - 1.2f * u);   /* brighter as it nears */
     if (u < 0.1f || u > 0.9f) return;
     w->user[3] -= BLK;
     if (w->user[3] > 0) return;
     float edge = u < 0.25f ? (u - 0.1f) / 0.15f : u > 0.75f ? (0.9f - u) / 0.15f : 1.0f;
-    ring_strike(&w->g.ring, &w->rng, &MAT_RAIL, rng_range(&w->rng, 280, 320), 0.7f * edge, 0.6f, 1.0f, t->ag[MAX_AGENTS - 1].pan, t->ag[MAX_AGENTS - 1].dist);
-    if (w->user[5] == 0) { w->user[5] = 1; w->user[3] = 0.13f; } else { w->user[5] = 0; w->user[3] = t->user[4] * rng_range(&w->rng, 0.95f, 1.05f); }
+    ring_strike(&w->g.ring, &w->rng, &MAT_RAIL, rng_range(&w->rng, 420, 520), 0.5f * edge, 0.6f, 0.8f, t->ag[MAX_AGENTS - 1].pan, t->ag[MAX_AGENTS - 1].dist);
+    if (w->user[5] == 0) { w->user[5] = 1; w->user[3] = 0.08f; } else { w->user[5] = 0; w->user[3] = t->user[4] * rng_range(&w->rng, 0.95f, 1.05f); }
 }
 static void add_trains(Engine *e, float rate, float dlo, float dhi, float len_lo, float len_hi) {
-    Source *s = add_passby(e, "trains", train_fire, rate, len_lo, len_hi, dlo, dhi, 0.05f, 0.4f, GL_TRAIN);
+    Source *s = add_passby(e, "trains", train_fire, rate, len_lo, len_hi, dlo, dhi, 0.05f, 0.47f, GL_TRAIN);
     s->tod[0] = 0.8f; s->tod[1] = 1.0f; s->tod[2] = 1.0f; s->tod[3] = 0.3f;
     Source *w = engine_add(e, "train wheels", L_HUMANS, G_RING, B_BED);
-    w->g.ring.level = 0.3f; w->block = wheels_block;
+    w->g.ring.level = 0.16f; w->block = wheels_block;   /* (in the rush, not over it) */
 }
 
 /* The city's people, as heard from a window: distant engines. A low murmur of traffic (two engines idling and
- * cruising, far off, drifting in pitch and loudness), and now and then one revs somewhere: its pitch rising and
- * falling back, a soft swell. Nothing near; nothing that could pass for a voice.
- * user[0] the rev's time, [1] its length, [2] its peak (pitch), [3] its voice + 1, [4] [5] the murmur's drift */
+ * cruising, far off, drifting in pitch and loudness), and now and then
+ * cars pull away a street or two off, revving through a gear change. Nothing near; nothing that could pass for a voice.
+ * user[0] the car's time, [1] its length, [2] its peak (pitch), [3] its voice + 1, [4] [5] the murmur's drift; ag[0]
+ * where it set off (pan, dist) and which way (tempo) */
 static void engines_block(Engine *e, Source *s) {
     Hum *h = &s->g.hum;
     float act = src_tod(e, s) * (0.3f + 1.4f * e->eff.activity) * e->dens[L_HUMANS] * e->gov;
@@ -618,40 +621,47 @@ static void engines_block(Engine *e, Source *s) {
         h->v[k].pmul = 1.0f + 0.07f * (k ? s->user[5] : s->user[4]);
         h->v[k].target = (0.07f + 0.08f * act) * (1.0f + 0.35f * (k ? s->user[4] : s->user[5]));
     }
-    if (s->user[3] <= 0) {                           /* a rev, now and then: about one in 15 s when it's busy */
-        if (rng_f(&s->rng) < act * 0.07f * BLK) {
+    if (s->user[3] <= 0) {                           /* a car pulling away, about one in 7 s when it's busy */
+        if (rng_f(&s->rng) < act * 0.14f * BLK) {
             engine_var_begin(e, s);
-            int v = hum_start(h, rng_range(&s->rng, 34, 46), 0.5f, 0.9f, 0.4f, 0.3f, 240, 0, 0, 0, 0.25f);
+            int v = hum_start(h, rng_range(&s->rng, 28, 36), 0.5f, 1.3f, 0.4f, 0.35f, 350, 0, 0, 0, 0.3f);
             engine_var_end();
             if (v >= 0) {
-                float pan = rng_range(&s->rng, -0.8f, 0.8f), dist = rng_range(&s->rng, 0.7f, 0.88f);   /* (a few streets away) */
-                spatial_set(&h->v[v].sp, pan, dist);
+                Agent *a = &s->ag[0];
+                a->pan = rng_range(&s->rng, -0.7f, 0.7f); a->dist = rng_range(&s->rng, 0.6f, 0.72f);
+                a->tempo = a->pan > 0 ? -1.0f : 1.0f;     /* (it drives off across the middle) */
+                spatial_set(&h->v[v].sp, a->pan, a->dist);
                 h->v[v].target = 0.02f;                  /* (a voice at nothing switches itself off: it starts just above) */
-                s->user[0] = 0; s->user[1] = rng_range(&s->rng, 2.5f, 4.5f); s->user[2] = rng_range(&s->rng, 1.25f, 1.45f); s->user[3] = (float)(v + 1);
-                engine_post(e, L_HUMANS, GL_CAR, pan, dist, 0, 0, s->user[1] * 2.0f);
+                s->user[0] = 0; s->user[1] = rng_range(&s->rng, 3.5f, 5.5f); s->user[2] = rng_range(&s->rng, 2.4f, 3.2f); s->user[3] = (float)(v + 1);
+                engine_post(e, L_HUMANS, GL_CAR, a->pan, a->dist, 0, (int)a->tempo, s->user[1] * 1.5f);
                 s->events++; e->layer_events[L_HUMANS]++;
             }
         }
         return;
     }
     int v = (int)s->user[3] - 1;
+    Agent *a = &s->ag[0];
     float u = (s->user[0] += BLK) / s->user[1], env;
-    if (u < 0.35f) env = fm_sin_turns(0.25f * u / 0.35f);                   /* up */
-    else if (u < 1.0f) env = 0.5f + 0.5f * fm_sin_turns(0.25f + 0.5f * (u - 0.35f) / 0.65f);   /* and back down */
+    /* the revs: up through first gear, a dip at the change, up again through second, then easing off */
+    if (u < 0.4f) env = fm_sin_turns(0.25f * u / 0.4f);
+    else if (u < 0.47f) env = 1.0f - 0.45f * (u - 0.4f) / 0.07f;
+    else if (u < 0.75f) env = 0.55f + 0.35f * fm_sin_turns(0.25f * (u - 0.47f) / 0.28f);
+    else if (u < 1.0f) env = 0.9f - 0.6f * (u - 0.75f) / 0.25f;
     else env = 0;
-    h->v[v].pmul = 1.0f + (s->user[2] - 1.0f) * env * env;
-    h->v[v].index = 0.9f + 0.7f * env;                          /* a little harder as it revs, still low */
-    h->v[v].noise_cut = 240.0f + 160.0f * env;
-    h->v[v].target = (0.16f + 0.13f * act) * (0.2f + 0.8f * env);   /* (about 5 dB over the murmur at its height) */
-    if (u >= 1.0f) { hum_release(h, v, 1.5f); s->user[3] = 0; }
+    h->v[v].pmul = 1.0f + (s->user[2] - 1.0f) * env;
+    h->v[v].index = 1.3f + 0.9f * env;                          /* harder as it revs, and still dark */
+    h->v[v].noise_cut = 350.0f + 350.0f * env;
+    h->v[v].target = (0.22f + 0.16f * act) * (0.3f + 0.7f * env) * (1.0f - 0.5f * u);   /* fading as it goes */
+    spatial_set(&h->v[v].sp, a->pan + a->tempo * 0.5f * u, a->dist + 0.15f * u);
+    if (u >= 1.0f) { hum_release(h, v, 1.0f); s->user[3] = 0; }
 }
 static void h_city(Engine *e) {
     static const float tod_t[4] = { 0.6f, 1.0f, 0.9f, 0.25f }, tod_c[4] = { 0.6f, 1.0f, 0.9f, 0.3f };
-    Source *s = add_far_noise(e, "traffic roar", 2.0f, 320, 0.11f, 0.45f); memcpy(s->tod, tod_t, sizeof s->tod);
+    Source *s = add_far_noise(e, "traffic roar", 2.0f, 400, 0.07f, 0.28f); memcpy(s->tod, tod_t, sizeof s->tod);
     s = engine_add(e, "distant engines", L_HUMANS, G_HUM, B_BED);
     s->g.hum.level = 0.6f; s->glyph = GL_CAR; s->block = engines_block; memcpy(s->tod, tod_c, sizeof s->tod);
     add_jets(e, 0.025f, 0.35f, 0.6f);
-    add_trains(e, 0.03f, 0.35f, 0.65f, 14, 22);
+    add_trains(e, 0.018f, 0.5f, 0.72f, 5, 7);      /* fast: across in 5-7 s, quicker than the cars; one a minute or so */
 }
 
 static void boat_fire(Engine *e, Source *s, float pan, float dist, float x) {
@@ -662,7 +672,7 @@ static void voices_fire(Engine *e, Source *s, float pan, float dist, float x) {
 }
 static void h_jungle(Engine *e) {
     static const float tod_v[4] = { 0.6f, 1.0f, 0.8f, 0.1f };
-    add_passby(e, "river boat", boat_fire, 0.012f, 20, 30, 0.4f, 0.7f, 0.06f, 0.35f, GL_BOAT);
+    add_passby(e, "river boat", boat_fire, 0.012f, 20, 30, 0.4f, 0.7f, 0.06f, 0.24f, GL_BOAT);
     Source *s = engine_add(e, "far voices", L_HUMANS, G_CROWD, B_SCATTER);
     s->rate = 0.15f; s->g.crowd.level = 0.4f; s->dist_lo = 0.85f; s->dist_hi = 0.95f; s->fire = voices_fire; s->glyph = GL_DOT; memcpy(s->tod, tod_v, sizeof s->tod);
 }
@@ -705,14 +715,14 @@ static void prop_fire(Engine *e, Source *s, float pan, float dist, float x) {
 }
 static void h_forest(Engine *e) {
     add_far_noise(e, "far road", 2.0f, 260, 0.05f, 0.12f);
-    add_passby(e, "aircraft", prop_fire, 0.018f, 22, 32, 0.7f, 0.9f, 0.06f, 0.35f, GL_PLANE);
+    add_passby(e, "aircraft", prop_fire, 0.018f, 22, 32, 0.7f, 0.9f, 0.06f, 0.29f, GL_PLANE);
 }
 
 static void airboat_fire(Engine *e, Source *s, float pan, float dist, float x) {
     (void)e; (void)pan; (void)dist; (void)x; s->pb_voice = hum_start(&s->g.hum, rng_range(&s->rng, 100, 120), 1.5f, 2.0f, 1.0f, 0.5f, 1600, 0, 0, 0, 1.5f);
 }
 static void h_swamp(Engine *e) {
-    add_passby(e, "airboat", airboat_fire, 0.012f, 12, 18, 0.3f, 0.6f, 0.08f, 0.4f, GL_BOAT);
+    add_passby(e, "airboat", airboat_fire, 0.012f, 12, 18, 0.3f, 0.6f, 0.08f, 0.2f, GL_BOAT);
     add_far_noise(e, "distant hum", 2.0f, 140, 0.05f, 0.06f);
 }
 
@@ -739,7 +749,7 @@ static void rigging_block(Engine *e, Source *s) { s->rate = 0.1f * (0.2f + 1.5f 
 static void h_ocean(Engine *e) {
     Source *s = engine_add(e, "buoy bell", L_HUMANS, G_RING, B_BED); s->g.ring.level = 0.6f; s->block = buoy_block; s->user[0] = 3;
     s = engine_add(e, "ship horn", L_HUMANS, G_HUM, B_BED); s->g.hum.level = 0.5f; s->block = horn_block;
-    add_passby(e, "distant boat", boat_fire, 0.025f, 25, 35, 0.55f, 0.8f, 0.05f, 0.45f, GL_BOAT);
+    add_passby(e, "distant boat", boat_fire, 0.025f, 25, 35, 0.55f, 0.8f, 0.05f, 0.35f, GL_BOAT);
     s = engine_add(e, "rigging", L_HUMANS, G_RING, B_SCATTER);
     s->g.ring.level = 0.45f; s->dist_lo = 0.3f; s->dist_hi = 0.6f; s->fire = rigging_fire; s->block = rigging_block; s->glyph = GL_SQUARE;
 }
@@ -754,7 +764,7 @@ static void alien_drone_block(Engine *e, Source *s) {
     v->target = 0.12f + 0.3f * e->eff.activity;
 }
 static void h_alien(Engine *e) {
-    add_passby(e, "craft", craft_fire, 0.035f, 14, 20, 0.25f, 0.55f, 0.08f, 0.4f, GL_CRAFT);
+    add_passby(e, "craft", craft_fire, 0.035f, 14, 20, 0.25f, 0.55f, 0.08f, 0.0f, GL_CRAFT);   /* (seen, not heard: ALIEN as it was approved, silent craft and all) */
     Source *s = engine_add(e, "beacon", L_HUMANS, G_VOICE, B_SCATTER);
     s->rate = 0.22f; s->regular = 1; s->pan_lo = -0.65f; s->pan_hi = -0.55f; s->dist_lo = 0.75f; s->dist_hi = 0.85f;
     s->g.voice.level = 0.4f; s->fire = beacon_fire; s->glyph = GL_BEACON;

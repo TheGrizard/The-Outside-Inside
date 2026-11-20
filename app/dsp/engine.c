@@ -139,7 +139,12 @@ Source *engine_add(Engine *e, const char *name, int layer, GenKind gk, BehKind b
     s->pan_lo = -0.9f; s->pan_hi = 0.9f; s->dist_lo = 0.1f; s->dist_hi = 0.6f;
     for (int i = 0; i < 4; i++) s->tod[i] = 1.0f;
     s->alive = (layer == L_ANIMALS || layer == L_HUMANS);
-    rng_seed(&s->rng, rng_u32(&e->rng));
+    {   /* each source its own sequence: the engine's next number scrambled (a source seeded with it as it is would
+         * replay its neighbour's a step behind, and two pass-bys added together would set off together) */
+        uint32_t x = rng_u32(&e->rng) + 0x9E3779B9u * (uint32_t)e->nsrc;
+        x ^= x >> 16; x *= 0x7FEB352Du; x ^= x >> 15; x *= 0x846CA68Bu; x ^= x >> 16;
+        rng_seed(&s->rng, x);
+    }
     switch (gk) {
     case G_AIR: air_init(&s->g.air); s->g.air.gust_link = 0; break;
     case G_RAIN: rain_init(&s->g.rain); break;
@@ -325,6 +330,8 @@ static void beh_passby(Engine *e, Source *s) {
             s->pb_voice = -1;
             if (s->fire) { var_begin(e, s, 1); s->fire(e, s, 0, 0, 0); var_end(); }   /* the patch starts a HUM voice, sets pb_voice */
             if (s->pb_voice >= 0) {
+                h->v[s->pb_voice].target = 1e-3f;      /* (a HUM voice aimed at nothing switches itself off at once:
+                                                        * every pass-by was silent until this) */
                 s->pb_on = 1; s->pb_t = 0;
                 s->pb_len = rng_range(&s->rng, s->pb_len_lo, s->pb_len_hi);
                 s->pb_dir = rng_f(&s->rng) < 0.5f ? -1.0f : 1.0f;
