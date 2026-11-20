@@ -1,0 +1,11 @@
+listen
+wait 1000
+turn ALGO 1
+wait 100
+said INDUSTRIAL
+turn PRESET 1
+wait 100
+said ANIMALS
+tap REC
+wait 100
+said RANDOMISED

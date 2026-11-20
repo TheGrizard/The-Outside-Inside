@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "id": "the-outside-inside",
+  "name": "The Outside Inside",
+  "author": "TheGrizard",
+  "license": "MPL-2.0",
+  "tagline": "generative field recordings, made entirely by synthesis",
+  "description": "The Outside Inside plays an endless, never-repeating stereo field recording of nine places, from city streets to an alien plain, all synthesised. Four layers (weather, animals, landscape, humans), four macros (weather, time, activity, entropy), patches you can mix into your own environments, and an animated scene on the screen.",
+  "tags": ["ambient", "generative", "synth"],
+  "install": "https://github.com/TheGrizard/the-outside-inside/releases/latest",
+  "source": "https://github.com/TheGrizard/the-outside-inside",
+  "screenshot": "docs/screen.png",
+  "hardware": {
+    "models": ["FM-1"],
+    "flash": ["856014", "B36014"],
+    "features": ["usb-audio-in", "usb-audio-out", "second-core", "screen-reader"]
+  },
+  "credits": "Built on fm1-base by Charles Vestal and felucca-bsp by Leo Kuroshita."
+}

@@ -1,0 +1,28 @@
+# saving: a flash that takes saves, then one that refuses them (an FM-1 whose flash chip the storage does not know)
+wait 1500
+tap HOME
+wait 200
+shot info.png
+expect store_writes >0
+turn ALGO 2
+tap SAVE
+wait 200
+expect nusers 1
+flash_fail 1
+turn K2 4
+tap SAVE
+wait 300
+shot nosave.png
+wait 1500
+tap HOME
+wait 200
+shot info_nosave.png
+flash_fail 0
+reboot
+wait 500
+expect nusers 1
+expect level1 80
+listen
+where
+wait 200
+said Editing

@@ -1,0 +1,104 @@
+# the home screen, the controls, saving and loading
+expect env 4
+expect level0 60
+wav home.wav
+wait 6000
+shot forest.png
+turn K1 3
+wait 300
+shot levels.png
+expect level0 66
+wait 2500
+turn PRESET 1
+wait 200
+shot presets.png
+expect patch1 7
+wait 2500
+turn ALGO -1
+wait 200
+shot envlist.png
+expect env 0
+expect level3 70
+expect patch1 0
+wait 3000
+expect enginepatch2 0
+shot city.png
+tap REC
+wait 300
+shot rec.png
+wait 6000
+tap SAVE
+wait 200
+expect nusers 1
+expect env 9
+shot saved.png
+wait 1500
+turn ALGO 1
+wait 200
+expect env 7
+turn ALGO -1
+wait 200
+expect env 9
+shot envlist_user.png
+turn ALGO 1
+wait 5000
+shot alien.png
+turn ALGO 1
+wait 5000
+shot caves.png
+turn ALGO 2
+wait 5000
+shot forest2.png
+turn ALGO 1
+wait 5000
+shot industrial.png
+turn ALGO 1
+wait 5000
+shot jungle.png
+turn ALGO 1
+wait 5000
+shot ocean.png
+turn ALGO 1
+wait 5000
+shot space.png
+turn ALGO 1
+wait 5000
+shot swamp.png
+expect env 5
+press SEL
+turn K2 -5
+wait 300
+shot density.png
+release SEL
+expect dens1 40
+expect sel 1
+tap SEL
+expect sel 2
+wait 2500
+press HOME
+wait 200
+shot macros.png
+turn K1 1
+wait 200
+shot macros2.png
+release HOME
+tap OCT+
+wait 6000
+shot storm.png
+tapkey w1
+wait 200
+tapkey w0
+wait 2000
+wavstop
+expect playing 1
+tap PLAY
+wait 1500
+expect playing 0
+turn K4 5
+wait 9000
+reboot
+wait 500
+expect nusers 1
+expect playing 1
+expect level3 35
+expect env 5

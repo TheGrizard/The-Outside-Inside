@@ -1,0 +1,23 @@
+# The Outside Inside: generative ambience for the M-VAVE FM-1 (tools/build.py)
+# Build: ./build.sh (from the repository's root; it runs base/tools/build.py app with the Terminus pixel font)
+name = "THE-OUTSIDE-INSIDE"
+title = "The Outside Inside"
+id_prefix = "FM-1_77"          # package identity: dev FM-1_7700, releases FM-1_77XXYYZZ
+usb_manufacturer = "The Outside Inside"
+usb_product = "The Outside Inside FM-1"
+o2 = ["dsp/generators.c", "dsp/engine.c", "dsp/patches.c"]   # the sound engine, compiled at -O2
+words = "words.tsv"
+ble = false                    # no Bluetooth: its RAM goes to the reverb
+cpu2 = true                    # the second core renders two of the layers (app_render)
+cpu2_fallback = true           # if it fails, carry on with one core instead of restarting
+cpu2_stack = 8192              # the layers' generators go a few calls deep
+# the site and firmware.json
+tagline = "generative field recordings, made entirely by synthesis"
+licence = "MPL-2.0"
+credits = "Built on fm1-base by Charles Vestal and felucca-bsp by Leo Kuroshita."
+author = "TheGrizard"
+repo = "https://github.com/TheGrizard/the-outside-inside"
+install = "https://github.com/TheGrizard/the-outside-inside/releases/latest"
+screenshot = "docs/screen.png"
+description = "The Outside Inside plays an endless, never-repeating stereo field recording of nine places, from city streets to an alien plain, all synthesised. Four layers (weather, animals, landscape, humans), four macros (weather, time, activity, entropy), patches you can mix into your own environments, and an animated scene on the screen."
+tags = ["ambient", "generative", "synth"]
