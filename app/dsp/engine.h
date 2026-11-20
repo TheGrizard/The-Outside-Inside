@@ -13,15 +13,19 @@
 enum { L_WEATHER, L_ANIMALS, L_LANDSCAPE, L_HUMANS };
 
 /* The four macros, all 0..1.
-   WEATHER  steps through WEATHER_TYPES weather types, blending neighbours
+   WEATHER  steps through its set's weather types, blending neighbours (Earth's, Space's or the alien world's: the
+            weather preset's world)
    TIME     dawn -> day -> dusk -> night
    ACTIVITY how much animal and human life
    ENTROPY  how much the scene varies: 0 stays fixed, 1 wanders (weather drifts, states change, songs vary) */
 typedef struct { float weather, time, activity, entropy; } Macros;
 
-#define WEATHER_TYPES 10
-float weather_value(int type);           /* the knob position of a weather type */
-const char *weather_name(float w);
+enum { WX_EARTH, WX_SPACE, WX_ALIEN, WX_SETS };
+#define WEATHER_MAX 11                   /* the most types a set has */
+int weather_set(int weather_patch);      /* which set a weather preset's world has (-1: Earth's) */
+int weather_count(int set);
+float weather_value(int set, int type);  /* the knob position of a weather type */
+const char *weather_name(int set, float w);
 const char *time_name(float t);
 
 typedef enum { G_AIR, G_RAIN, G_WATER, G_VOICE, G_RING, G_HUM, G_CROWD } GenKind;
@@ -31,7 +35,7 @@ typedef enum { B_BED, B_SCATTER, B_PHRASE, B_CHORUS, B_SWELL, B_PASSBY, B_RARE }
 enum {
     GL_NONE, GL_BIRD, GL_BIGBIRD, GL_BAT, GL_NOTE, GL_DOT, GL_BIGDOT, GL_RING, GL_DRIP, GL_FLASH, GL_CHIME,
     GL_STEAM, GL_BAR, GL_CAR, GL_PLANE, GL_TRAIN, GL_CRAFT, GL_BOAT, GL_ROCK, GL_SPRAY, GL_BEACON, GL_PRESS,
-    GL_GROWL, GL_SIGNAL, GL_GEYSER, GL_SQUARE, GL_FLAT
+    GL_GROWL, GL_SIGNAL, GL_GEYSER, GL_SQUARE, GL_FLAT, GL_BEE, GL_SHEEP
 };
 
 typedef struct Engine Engine;
@@ -91,7 +95,8 @@ void reverb_init(Reverb *rv, float size, float rt60, float damp_hz, float predel
 void reverb_block(Reverb *rv, const float *inL, const float *inR, float *outL, float *outR);
 
 /* ---------------- patches: four libraries, one per layer; an environment is one patch from each ---------------- */
-#define NUM_ENVS 9
+#define NUM_ENVS 10
+#define ENV_MEADOW 9
 typedef struct { const char *name; float dw, da; } StateDef;      /* a scene state: offsets on weather, activity */
 typedef struct {
     const char *name;
@@ -147,6 +152,10 @@ struct Engine {
     float wind, rain, thunder, actf, ent, tod_w[4];
     float howl, drop, thunder_near, muffle, animals_w, snow;
     float gust, startle, t, swell_ui; int swell_peak;
+    int wset;                           /* the weather set in play (the weather preset's world) */
+    float shelter;                      /* 0..1: storms and heavy rain send the animals into cover (not the jungle's) */
+    float shower, shower_t, shower_len, shower_amp, shower_wait;   /* THUNDER's passing showers */
+    float wx_slow, wx_aim, wx_left;     /* Space's and the alien world's weather, wandering over minutes */
     OnePole muf[2][2];
     Reverb rv;
     float dc[2];

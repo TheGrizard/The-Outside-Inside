@@ -4,22 +4,49 @@
 static const float BLOCK_S = (float)OUT_BLOCK / OUT_SR;
 
 /* ------------------------------------------------------------------ weather types and names */
-typedef struct { const char *name; float wind, howl, rain, drop, thunder, near, muffle, animals, snow; } WeatherType;
-static const WeatherType WX[WEATHER_TYPES] = {
-    /* name           wind   howl   rain   drop  thun  near  muffle animals snow */
-    { "SNOW",         0.25f, 0.1f,  0.0f,  0.0f, 0.0f, 0.0f, 0.75f, 0.35f, 1.0f },
-    { "FOG",          0.05f, 0.0f,  0.04f, 0.9f, 0.0f, 0.0f, 0.5f,  0.7f,  0.0f },
-    { "CALM",         0.08f, 0.0f,  0.0f,  0.5f, 0.0f, 0.0f, 0.0f,  1.0f,  0.0f },
-    { "BREEZE",       0.45f, 0.1f,  0.0f,  0.5f, 0.0f, 0.0f, 0.0f,  1.0f,  0.0f },
-    { "DRIZZLE",      0.3f,  0.05f, 0.35f, 0.1f, 0.0f, 0.0f, 0.1f,  0.75f, 0.0f },
-    { "RAIN",         0.4f,  0.1f,  0.7f,  0.5f, 0.0f, 0.0f, 0.1f,  0.45f, 0.0f },
-    { "DOWNPOUR",     0.5f,  0.15f, 1.0f,  1.0f, 0.05f, 0.0f, 0.15f, 0.2f, 0.0f },
-    { "THUNDERSTORM", 0.8f,  0.35f, 0.9f,  0.8f, 1.0f, 0.8f, 0.1f,  0.12f, 0.0f },
-    { "GALE",         1.0f,  0.8f,  0.15f, 0.6f, 0.25f, 0.1f, 0.0f, 0.2f,  0.0f },
-    { "WINDY",        0.85f, 0.4f,  0.0f,  0.5f, 0.0f, 0.0f, 0.0f,  0.6f,  0.0f },
+/* Three worlds, three sets of weather, each in order calm to stormy (the knob's scale; ENTROPY drifts along it, so
+ * a world only ever drifts into its own weather). showers: now and then a light shower passes (THUNDER's) */
+typedef struct { const char *name; float wind, howl, rain, drop, thunder, near, muffle, animals, snow, showers; } WeatherType;
+static const WeatherType WX_E[] = {
+    /* name           wind   howl   rain   drop  thun  near  muffle animals snow showers */
+    { "SNOW",         0.25f, 0.1f,  0.0f,  0.0f, 0.0f, 0.0f, 0.75f, 0.35f, 1.0f, 0 },
+    { "FOG",          0.05f, 0.0f,  0.04f, 0.9f, 0.0f, 0.0f, 0.5f,  0.7f,  0.0f, 0 },
+    { "CALM",         0.08f, 0.0f,  0.0f,  0.5f, 0.0f, 0.0f, 0.0f,  1.0f,  0.0f, 0 },
+    { "BREEZE",       0.45f, 0.1f,  0.0f,  0.5f, 0.0f, 0.0f, 0.0f,  1.0f,  0.0f, 0 },
+    { "DRIZZLE",      0.3f,  0.05f, 0.35f, 0.1f, 0.0f, 0.0f, 0.1f,  0.75f, 0.0f, 0 },
+    { "RAIN",         0.4f,  0.1f,  0.7f,  0.5f, 0.0f, 0.0f, 0.1f,  0.45f, 0.0f, 0 },
+    { "DOWNPOUR",     0.5f,  0.15f, 1.0f,  1.0f, 0.05f, 0.0f, 0.15f, 0.2f, 0.0f, 0 },
+    { "THUNDERSTORM", 0.8f,  0.35f, 0.9f,  0.8f, 1.0f, 0.8f, 0.1f,  0.12f, 0.0f, 0 },
+    { "THUNDER",      0.55f, 0.2f,  0.0f,  0.6f, 1.0f, 0.55f, 0.0f, 0.5f,  0.0f, 1 },   /* dry: the storm without its rain */
+    { "GALE",         1.0f,  0.8f,  0.15f, 0.6f, 0.25f, 0.1f, 0.0f, 0.2f,  0.0f, 0 },
+    { "WINDY",        0.85f, 0.4f,  0.0f,  0.5f, 0.0f, 0.0f, 0.0f,  0.6f,  0.0f, 0 },
 };
-float weather_value(int type) { return (float)type / (WEATHER_TYPES - 1); }
-const char *weather_name(float w) { int i = (int)(w * (WEATHER_TYPES - 1) + 0.5f); return WX[i < 0 ? 0 : i >= WEATHER_TYPES ? WEATHER_TYPES - 1 : i].name; }
+static const WeatherType WX_S[] = {   /* the station: no snow, no fog; the solar wind, particles, flares */
+    { "STILL VOID",     0.05f, 0.0f,  0.0f,  0.5f, 0.0f, 0.0f, 0, 1.0f,  0.0f, 0 },
+    { "ICE DUST",       0.15f, 0.05f, 0.05f, 0.5f, 0.0f, 0.0f, 0, 1.0f,  0.6f, 0 },
+    { "SOLAR WIND",     0.5f,  0.15f, 0.05f, 0.5f, 0.0f, 0.0f, 0, 1.0f,  0.0f, 0 },
+    { "PARTICLE RAIN",  0.35f, 0.1f,  0.6f,  0.5f, 0.0f, 0.0f, 0, 0.8f,  0.0f, 0 },
+    { "SOLAR FLARE",    0.6f,  0.3f,  0.4f,  0.6f, 0.9f, 0.6f, 0, 0.6f,  0.0f, 0 },
+    { "MAGNETIC STORM", 1.0f,  0.8f,  0.7f,  0.6f, 0.5f, 0.3f, 0, 0.45f, 0.0f, 0 },
+};
+static const WeatherType WX_A[] = {   /* the crystal plains: singing winds and ion rain */
+    { "STILL AIR",      0.08f, 0.0f,  0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f,  0.0f, 0 },
+    { "CRYSTAL FOG",    0.05f, 0.0f,  0.04f, 0.9f, 0.0f, 0.0f, 0.5f, 0.7f,  0.0f, 0 },
+    { "SINGING WIND",   0.55f, 0.45f, 0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f,  0.0f, 0 },
+    { "ION DRIZZLE",    0.3f,  0.1f,  0.35f, 0.1f, 0.0f, 0.0f, 0.1f, 0.8f,  0.0f, 0 },
+    { "ION RAIN",       0.45f, 0.15f, 0.75f, 0.5f, 0.0f, 0.0f, 0.1f, 0.6f,  0.0f, 0 },
+    { "ION STORM",      0.8f,  0.4f,  0.9f,  0.8f, 1.0f, 0.8f, 0.1f, 0.35f, 0.0f, 0 },
+    { "HOWLING GALE",   1.0f,  0.9f,  0.15f, 0.6f, 0.25f, 0.1f, 0.0f, 0.3f, 0.0f, 0 },
+};
+static const WeatherType *const WXS[WX_SETS] = { WX_E, WX_S, WX_A };
+static const int WXN[WX_SETS] = { sizeof WX_E / sizeof WX_E[0], sizeof WX_S / sizeof WX_S[0], sizeof WX_A / sizeof WX_A[0] };
+int weather_set(int p) { return p == 2 ? WX_SPACE : p == 7 ? WX_ALIEN : WX_EARTH; }
+int weather_count(int set) { return WXN[set < 0 || set >= WX_SETS ? 0 : set]; }
+float weather_value(int set, int type) { return (float)type / (weather_count(set) - 1); }
+const char *weather_name(int set, float w) {
+    int n = weather_count(set), i = (int)(w * (n - 1) + 0.5f);
+    return WXS[set < 0 || set >= WX_SETS ? 0 : set][i < 0 ? 0 : i >= n ? n - 1 : i].name;
+}
 const char *time_name(float t) { static const char *const n[4] = { "DAWN", "DAY", "DUSK", "NIGHT" }; int i = (int)(t * 3.0f + 0.5f); return n[i < 0 ? 0 : i > 3 ? 3 : i]; }
 
 static float clamp01(float x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
@@ -28,17 +55,46 @@ static void derive(Engine *e) {
     e->ent = clamp01(e->m.entropy);
     float sp = 0.15f + 2.0f * e->ent;
     float ww = drift_step(&e->wander[0], &e->rng, sp), wa = drift_step(&e->wander[1], &e->rng, sp), wt = drift_step(&e->wander[2], &e->rng, sp * 0.5f);
+    int set = e->wset = weather_set(e->patch[L_WEATHER]), nwx = WXN[set];
+    const WeatherType *WX = WXS[set];
     e->eff = e->m;
-    e->eff.weather = clamp01(e->m.weather + ww * e->ent * 0.35f);
+    if (set == WX_EARTH) e->eff.weather = clamp01(e->m.weather + ww * e->ent * 0.315f);   /* (about three types either way) */
+    else {   /* Space, the alien world: their weather wanders slowly through the whole set, a new aim every few minutes */
+        if ((e->wx_left -= BLOCK_S * (0.3f + e->ent)) <= 0) { e->wx_aim = rng_bi(&e->rng); e->wx_left = rng_range(&e->rng, 60.0f, 200.0f); }
+        e->wx_slow += (e->wx_aim - e->wx_slow) * (BLOCK_S / 45.0f);
+        e->eff.weather = clamp01(e->m.weather + (ww * 0.1f + e->wx_slow * 0.65f) * e->ent);
+    }
     e->eff.activity = clamp01(e->m.activity + wa * e->ent * 0.4f);
     e->eff.time = clamp01(e->m.time + wt * e->ent * 0.12f);
     {   /* blend the two neighbouring weather types */
-        float x = e->eff.weather * (WEATHER_TYPES - 1); int i = (int)x; if (i >= WEATHER_TYPES - 1) i = WEATHER_TYPES - 2; float f = x - i;
+        float x = e->eff.weather * (nwx - 1); int i = (int)x; if (i >= nwx - 1) i = nwx - 2; float f = x - i;
         const WeatherType *a = &WX[i], *b = &WX[i + 1];
 #define MIXW(k) (a->k + (b->k - a->k) * f)
         e->wind = MIXW(wind); e->howl = MIXW(howl); e->rain = MIXW(rain); e->drop = MIXW(drop);
         e->thunder = MIXW(thunder); e->thunder_near = MIXW(near); e->muffle = MIXW(muffle); e->animals_w = MIXW(animals); e->snow = MIXW(snow);
+        float showers = MIXW(showers);
 #undef MIXW
+        /* THUNDER's light showers: one passes every few minutes (sooner with ENTROPY), a minute or two of it */
+        if (showers > 0.01f) {
+            if (e->shower_len <= 0) {
+                if ((e->shower_wait -= BLOCK_S * (0.4f + 1.6f * e->ent)) <= 0) {
+                    e->shower_len = rng_range(&e->rng, 40.0f, 120.0f); e->shower_t = 0; e->shower_amp = rng_range(&e->rng, 0.15f, 0.32f);
+                    e->shower_wait = rng_range(&e->rng, 90.0f, 300.0f);
+                }
+            }
+        }
+        if (e->shower_len > 0) {
+            float u = (e->shower_t += BLOCK_S) / e->shower_len;
+            e->shower = u < 1.0f ? e->shower_amp * fm_sin_turns(0.5f * u) : 0;
+            if (u >= 1.0f) e->shower_len = 0;
+        } else e->shower = 0;
+        e->rain += showers * e->shower;
+    }
+    {   /* into cover: heavy rain, a storm overhead, a gale. Not in the jungle (it sings on), nor Space or the alien world */
+        float h = clamp01((e->rain - 0.35f) * 2.0f), t = e->thunder * 0.85f, g = clamp01((e->wind - 0.8f) * 2.5f);
+        if (t > h) h = t; if (g > h) h = g;
+        int ap = e->patch[L_ANIMALS];
+        e->shelter = (ap == 1 || ap == 2 || ap == 7) ? 0 : h;
     }
     e->actf = 0.1f + 1.8f * e->eff.activity;
     for (int i = 0; i < 4; i++) { float d = fm_fabsf(e->eff.time * 3.0f - i); e->tod_w[i] = d < 1 ? 1 - d : 0; }
@@ -85,7 +141,7 @@ static void var_drift(Engine *e, Source *s) {    /* where its pitch and its pace
 
 static float src_life(Engine *e, Source *s) {
     float x = src_tod(e, s) * (1.0f + s->vw_r);   /* (busier and quieter spells, so no rate stays even) */
-    if (s->layer == L_ANIMALS) x *= e->animals_w;
+    if (s->layer == L_ANIMALS) x *= e->animals_w * (s->rain_resp > 0 ? 1.0f : 1.0f - e->shelter);   /* (frogs love the rain) */
     if (s->rain_resp > 0) x *= 1.0f + s->rain_resp * e->rain;
     if (s->alive) x *= e->actf;
     if (s->layer == L_ANIMALS && e->startle > 0) x = 0;
@@ -121,7 +177,7 @@ void engine_init(Engine *e, uint32_t seed) {
     rng_seed(&e->rng, seed);
     e->gov = 1.0f;
     for (int i = 0; i < NUM_LAYERS; i++) { e->level[i] = 0.75f; e->dens[i] = 1.0f; e->fade[i] = 1.0f; e->patch[i] = -1; e->want[i] = -1; }
-    e->user = (Macros){ weather_value(3), 0.33f, 0.5f, 0.4f };
+    e->user = (Macros){ weather_value(WX_EARTH, 3), 0.33f, 0.5f, 0.4f };
     e->m = e->user; e->eff = e->m; e->glide_s = 6.0f;
     e->master_fade = 1.0f; e->playing = 1;
     e->state_left = 120.0f;
@@ -390,7 +446,7 @@ static void conductor(Engine *e) {
         if (pl) {
             const StateDef *st = &pl->states[e->state];
             float k = e->ent * 2.0f > 1.0f ? 1.0f : e->ent * 2.0f;
-            target.weather = clamp01(target.weather + st->dw * k);
+            target.weather = clamp01(target.weather + st->dw * k * (e->wset == WX_EARTH ? 0.9f : 1.0f));   /* (Earth's offsets were set in types) */
             target.activity = clamp01(target.activity + st->da * k);
             e->state_name = st->name;
         }
@@ -557,7 +613,7 @@ void engine_block_mix(Engine *e, float *outL, float *outR) {
 /* REC: new macros. The conductor glides to them, so nothing jumps. */
 void engine_randomise(Engine *e) {
     e->timeline = 0;
-    e->user.weather = weather_value(rng_int(&e->rng, WEATHER_TYPES));
+    e->user.weather = weather_value(e->wset, rng_int(&e->rng, weather_count(e->wset)));
     e->user.time = rng_f(&e->rng);
     e->user.activity = rng_range(&e->rng, 0.2f, 0.9f);
     e->user.entropy = rng_range(&e->rng, 0.1f, 0.8f);

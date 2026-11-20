@@ -152,6 +152,31 @@ static const Syllable BEEPER = { 1150, 1150, CURVE_HOLD, 0.5f, 0.02f, 0, 0, 0.15
 static const Species SP_BEEPER = { &BEEPER, 1, { "A-A-A-A-A-A-A-A" }, 1, 0, 0, 0.25f, 25.0f, 60.0f, 1, 1, 0.5f };
 static const Syllable TELEMETRY = { 1760, 1760, CURVE_HOLD, 0.08f, 0.1f, 0, 0, 0.1f, 0, 0, 0, 0, 0.5f };
 
+/* the meadow's birds: a skylark's endless warble from high up, a yellowhammer's "little bit of bread and no
+ * cheese" (a run of short notes and a long one), a wood pigeon's soft five-note coo */
+static const Syllable SKYLARK[] = {
+    { 3600, 4400, CURVE_LIN, 0.05f, 0.3f, 0, 0, 0.05f, 0, 0, 0, 0, 1 },
+    { 4800, 3900, CURVE_EXP, 0.045f, 0.3f, 0, 0, 0.05f, 0, 0, 0, 0, 0.9f },
+    { 4200, 4200, CURVE_HOLD, 0.12f, 0.1f, 45, 0.9f, 0, 0, 0, 0, 0, 0.8f },
+    { 3100, 5200, CURVE_SWOOP, 0.07f, 0.3f, 0, 0, 0.05f, 0, 0, 0, 0, 0.9f },
+    { 5600, 4600, CURVE_LIN, 0.035f, 0.3f, 0, 0, 0, 0, 0, 0, 0, 0.8f },
+    { 3900, 3400, CURVE_EXP, 0.06f, 0.3f, 0, 0, 0.05f, 0, 0, 0, 0, 0.9f },
+};
+static const Species SP_SKYLARK = { SKYLARK, 6, { "ABDCEAFBDEACFBDE", "DEABCFDABECAFDBE", "CABDEFACBDEFAC", "ABCDEFEDCBAFDBCE", "FDCABEDFACEB" }, 5,
+                                    0.06f, 0.1f, 0.012f, 0.4f, 1.6f, 3, 6, 0.38f };
+static const Syllable YELLOWHAMMER[] = {
+    { 5800, 5300, CURVE_EXP, 0.07f, 0.25f, 0, 0, 0.05f, 0, 0, 0, 0, 1 },
+    { 4600, 4400, CURVE_LIN, 0.45f, 0.15f, 0, 0, 0.05f, 0, 0, 0, 0, 0.9f },
+    { 5200, 4300, CURVE_EXP, 0.4f, 0.15f, 0, 0, 0.05f, 0, 0, 0, 0, 0.9f },
+};
+static const Species SP_YELLOWHAMMER = { YELLOWHAMMER, 3, { "AAAAAAAB", "AAAAAAAAAC", "AAAAAAB" }, 3, 0.05f, 0.08f, 0.06f, 6.0f, 12.0f, 2, 4, 0.45f };
+static const Syllable WOODPIGEON[] = {
+    { 470, 440, CURVE_EXP, 0.28f, 0.35f, 0, 0, 0.25f, 0, 0, 0, 0, 0.8f },
+    { 510, 455, CURVE_EXP, 0.5f, 0.3f, 0, 0, 0.3f, 0, 0, 0, 0, 1 },
+};
+static const Species SP_WOODPIGEON = { WOODPIGEON, 2, { "ABA-AA-A", "ABA-AA-AB", "ABA-AA" }, 3, 0.04f, 0.06f, 0.12f, 15.0f, 35.0f, 2, 4, 0.5f };
+static const Syllable GRASSHOPPER = { 6800, 6800, CURVE_HOLD, 1.3f, 0.35f, 24, 1.0f, 0, 1.41f, 1.2f, 0, 0, 0.16f };
+
 /* ======================================================================= WEATHER */
 static void city_wind(Engine *e, Source *s) { wind_follow(e, s, 0.12f, 0.45f, 0.1f, 0.4f); }
 static void city_rain(Engine *e, Source *s) { weather_rain(e, &s->g.rain, 2200.0f); }
@@ -255,6 +280,18 @@ static void w_industrial(Engine *e) {
     add_thunder(e, 0.8f, 0, 0);
 }
 
+static void meadow_breeze(Engine *e, Source *s) { wind_follow(e, s, 0.15f, 0.55f, 0.03f, 0.4f); }
+static void meadow_rain(Engine *e, Source *s) { weather_rain(e, &s->g.rain, 2400.0f); }
+static void w_meadow(Engine *e) {
+    Source *s = add_wind(e, "summer breeze", 1.0f, 1, 800, 0.6f, 1000, 8, 0.2f); s->block = meadow_breeze;
+    s = engine_add(e, "rain on grass", L_WEATHER, G_RAIN, B_BED);
+    { Rain *r = &s->g.rain; r->level = 0.4f; r->hiss = 0; r->click = 0; r->send = 0.25f; r->width = 1.0f;
+      r->wash = 1.0f; r->wash_white = 0.5f; r->wash_hp = 300.0f; r->wash_lp = 7000.0f; r->tone = 5000.0f; r->var = 0.35f; r->drops = 0.4f;   /* on grass: a soft hiss */
+      static const float f[4] = { 2400, 3600, 1300, 800 }, q[4] = { 1.6f, 2, 1.5f, 1.2f }, w[4] = { 3, 2, 1, 1 }, g[4] = { 1, 0.9f, 0.8f, 0.6f }; set_surfaces(r, f, q, w, g); }
+    s->block = meadow_rain;
+    add_thunder(e, 0.9f, 0, 0);
+}
+
 /* ======================================================================= ANIMALS */
 static Source *add_phrase(Engine *e, const char *name, float level, float dlo, float dhi, float answer, int agents,
                           const Species *a, const Species *b, const Species *c, const Species *d, const float tod[4], int glyph) {
@@ -346,6 +383,57 @@ static void a_industrial(Engine *e) {
     static const float tod_p[4] = { 1.2f, 1.0f, 0.8f, 0.05f }, tod_c[4] = { 1.3f, 0.8f, 1.0f, 0.0f };
     add_phrase(e, "pigeons", 0.45f, 0.15f, 0.6f, 0.3f, 4, &SP_PIGEON, 0, 0, 0, tod_p, GL_BIRD);
     add_phrase(e, "crows", 0.4f, 0.5f, 0.85f, 0.5f, 3, &SP_CROW, 0, 0, 0, tod_c, GL_BIGBIRD);
+}
+
+/* A bee flies by: a buzz (a honeybee's 200-250 Hz, a bumblebee's lower), wavering as it turns, close and gone */
+static void bee_fire(Engine *e, Source *s, float pan, float dist, float x) {
+    (void)e; (void)pan; (void)dist; (void)x;
+    float f = rng_f(&s->rng) < 0.4f ? rng_range(&s->rng, 130, 170) : rng_range(&s->rng, 205, 245);
+    s->pb_voice = hum_start(&s->g.hum, f, 1.0f, 1.6f, 0.8f, 0.06f, 2500, rng_range(&s->rng, 4.0f, 8.0f), 0.45f, 0, 0.3f);
+}
+/* the field's hum: many insects far off, by day; it thins when it rains */
+static void insect_hum_block(Engine *e, Source *s) {
+    Hum *h = &s->g.hum;
+    static const float F[2] = { 196.0f, 238.0f }, PAN[2] = { -0.55f, 0.5f };
+    for (int k = 0; k < 2; k++)
+        if (!h->v[k].on) { hum_start(h, F[k], 1.0f, 1.1f, 1.8f, 0.04f, 1500, 2.5f + k, 0.3f, 0, 3.0f); spatial_set(&h->v[k].sp, PAN[k], 0.8f); }
+    float life = src_tod(e, s) * e->animals_w * (1.0f - e->shelter) * (0.4f + 1.2f * e->eff.activity) * e->dens[L_ANIMALS] * e->gov;
+    s->user[4] += (rng_bi(&s->rng) * 0.8f - s->user[4]) * BLK * 0.1f;
+    for (int k = 0; k < 2; k++) {
+        h->v[k].pmul = 1.0f + 0.02f * (k ? -s->user[4] : s->user[4]);
+        h->v[k].target = 0.02f + 0.035f * life * (1.0f + 0.5f * (k ? -s->user[4] : s->user[4]));
+    }
+}
+/* sheep across the fields: a ewe's baa, now and then a lamb's; one often answers another */
+static void sheep_fire(Engine *e, Source *s, float pan, float dist, float x) {
+    (void)e; (void)x;
+    int lamb = rng_f(&s->rng) < 0.25f;
+    float f0 = lamb ? rng_range(&s->rng, 380, 470) : rng_range(&s->rng, 190, 260), dur = lamb ? rng_range(&s->rng, 0.5f, 0.8f) : rng_range(&s->rng, 0.7f, 1.3f);
+    crowd_bleat(&s->g.crowd, f0, dur, 850, 1350, 700, 1200, lamb ? 9.0f : rng_range(&s->rng, 6.0f, 8.0f), pan, dist, 1.0f);
+    if (rng_f(&s->rng) < 0.4f) { s->user[0] = rng_range(&s->rng, 1.0f, 3.0f); s->user[1] = pan; }   /* an answer, from elsewhere */
+}
+static void sheep_block(Engine *e, Source *s) {
+    if (s->user[0] <= 0 || (s->user[0] -= BLK) > 0) return;
+    float pan = s->user[1] + rng_range(&s->rng, 0.3f, 0.7f) * (s->user[1] > 0 ? -1.0f : 1.0f);
+    engine_var_begin(e, s);
+    crowd_bleat(&s->g.crowd, rng_range(&s->rng, 190, 260), rng_range(&s->rng, 0.7f, 1.2f), 850, 1350, 700, 1200, rng_range(&s->rng, 6.0f, 8.0f), pan, rng_range(&s->rng, s->dist_lo, s->dist_hi), 0.9f);
+    engine_var_end();
+    engine_post(e, L_ANIMALS, GL_SHEEP, pan, s->dist_hi, 0, 0, 0);
+    s->user[0] = 0;
+}
+static void a_meadow(Engine *e) {
+    static const float tod_p[4] = { 1.2f, 1.0f, 0.8f, 0.0f }, tod_bee[4] = { 0.3f, 1.0f, 0.6f, 0.0f }, tod_g[4] = { 0.3f, 1.0f, 0.8f, 0.0f }, tod_sh[4] = { 1.0f, 0.8f, 1.0f, 0.3f };
+    add_phrase(e, "songbirds", 0.45f, 0.2f, 0.75f, 0.3f, 7, &SP_SKYLARK, &SP_YELLOWHAMMER, &SP_BLACKBIRD, &SP_ROBIN, TOD_DAYBIRD, GL_BIRD);
+    add_phrase(e, "wood pigeon", 0.4f, 0.4f, 0.85f, 0.2f, 2, &SP_WOODPIGEON, 0, 0, 0, tod_p, GL_BIGBIRD);
+    Source *s = engine_add(e, "bees", L_ANIMALS, G_HUM, B_PASSBY);
+    s->rate = 0.12f; s->pb_len_lo = 2.5f; s->pb_len_hi = 5.0f; s->dist_lo = 0.05f; s->dist_hi = 0.35f; s->pb_doppler = 0.04f; s->user[1] = 0.22f;
+    s->g.hum.level = 0.6f; s->fire = bee_fire; s->glyph = GL_BEE; memcpy(s->tod, tod_bee, sizeof s->tod);
+    s = engine_add(e, "insect hum", L_ANIMALS, G_HUM, B_BED); s->g.hum.level = 0.6f; s->block = insect_hum_block; memcpy(s->tod, tod_bee, sizeof s->tod);
+    add_chorus(e, L_ANIMALS, "grasshoppers", &GRASSHOPPER, 0.4f, 4.0f, 9.0f, 0.1f, 6, 0.9f, 1.1f, 0.15f, 0.6f, tod_g, GL_DOT);
+    s = engine_add(e, "sheep", L_ANIMALS, G_CROWD, B_SCATTER);
+    s->rate = 0.08f; s->g.crowd.level = 0.35f; s->dist_lo = 0.78f; s->dist_hi = 0.92f; s->fire = sheep_fire; s->block = sheep_block; s->glyph = GL_SHEEP;
+    memcpy(s->tod, tod_sh, sizeof s->tod);
+    add_chorus(e, L_ANIMALS, "night crickets", &CRICKET, 0.22f, 0.7f, 1.1f, 0.3f, 8, 0.95f, 1.08f, 0.3f, 0.8f, TOD_NIGHT, GL_DOT);
 }
 
 /* ======================================================================= LANDSCAPE */
@@ -559,6 +647,11 @@ static void l_industrial(Engine *e) {
     s = engine_add(e, "dripping pipes", L_LANDSCAPE, G_WATER, B_SCATTER);
     s->g.water.level = 0.5f; s->dist_lo = 0.2f; s->dist_hi = 0.7f; s->user[0] = 3; s->user[1] = 6; s->user[2] = 2.0f;
     s->fire = single_drip; s->block = pipe_drip_block; s->glyph = GL_DRIP;
+}
+
+static void l_meadow(Engine *e) {
+    add_rustle(e, "long grass", 2600, 0.16f, 0.45f);
+    add_rustle(e, "hedgerow", 1500, 0.08f, 0.3f);
 }
 
 /* ======================================================================= HUMANS */
@@ -849,8 +942,20 @@ static void h_industrial(Engine *e) {
     add_jets(e, 0.02f, 0.4f, 0.7f);
 }
 
+static void lorry_fire(Engine *e, Source *s, float pan, float dist, float x) {   /* far off on the main road: a deep drone */
+    (void)e; (void)pan; (void)dist; (void)x; s->pb_voice = hum_start(&s->g.hum, rng_range(&s->rng, 55, 70), 0.5f, 0.9f, 0.3f, 0.3f, 300, 0, 0, 0, 3.0f);
+}
+static void h_meadow(Engine *e) {
+    static const float tod_r[4] = { 0.5f, 1.0f, 0.9f, 0.25f };
+    Source *s = add_far_noise(e, "distant road", 2.0f, 260, 0.04f, 0.1f); memcpy(s->tod, tod_r, sizeof s->tod);
+    s = add_passby(e, "far lorry", lorry_fire, 0.02f, 18, 30, 0.85f, 0.95f, 0.03f, 0.22f, GL_CAR); memcpy(s->tod, tod_r, sizeof s->tod);
+    s = add_passby(e, "light aircraft", prop_fire, 0.018f, 25, 40, 0.6f, 0.85f, 0.06f, 0.3f, GL_PLANE);
+    s->tod[0] = 0.4f; s->tod[1] = 1.0f; s->tod[2] = 0.8f; s->tod[3] = 0.0f;
+    add_jets(e, 0.012f, 0.6f, 0.8f);
+}
+
 /* ======================================================================= the libraries */
-const char *const ENV_NAMES[NUM_ENVS] = { "CITY", "JUNGLE", "SPACE", "CAVES", "FOREST", "SWAMP", "OCEAN", "ALIEN", "INDUSTRIAL" };
+const char *const ENV_NAMES[NUM_ENVS] = { "CITY", "JUNGLE", "SPACE", "CAVES", "FOREST", "SWAMP", "OCEAN", "ALIEN", "INDUSTRIAL", "MEADOW" };
 
 #define NOPLACE 0, 0, 0, 0, 0, 0, { { 0, 0, 0 } }
 const PatchDef PATCHES[NUM_LAYERS][NUM_ENVS] = {
@@ -858,11 +963,13 @@ const PatchDef PATCHES[NUM_LAYERS][NUM_ENVS] = {
         { "STREET WIND", w_city, NOPLACE }, { "TROPICAL RAIN", w_jungle, NOPLACE }, { "SOLAR WIND", w_space, NOPLACE },
         { "CAVE AIRFLOW", w_caves, NOPLACE }, { "WOODLAND BREEZE", w_forest, NOPLACE }, { "SWAMP DRIZZLE", w_swamp, NOPLACE },
         { "SEA WIND", w_ocean, NOPLACE }, { "ION STORM", w_alien, NOPLACE }, { "PIPE WIND", w_industrial, NOPLACE },
+        { "SUMMER BREEZE", w_meadow, NOPLACE },
     },
     {   /* ANIMALS */
         { "CITY BIRDS", a_city, NOPLACE }, { "RAINFOREST", a_jungle, NOPLACE }, { "DEEP SIGNALS", a_space, NOPLACE },
         { "BATS", a_caves, NOPLACE }, { "SONGBIRDS", a_forest, NOPLACE }, { "FROGS AND HERON", a_swamp, NOPLACE },
         { "GULLS", a_ocean, NOPLACE }, { "ALIEN CREATURES", a_alien, NOPLACE }, { "PIGEONS AND CROWS", a_industrial, NOPLACE },
+        { "SKYLARKS AND BEES", a_meadow, NOPLACE },
     },
     {   /* LANDSCAPE: also the place (reverb, backdrop, states) */
         { "STREETS", l_city, 1.2f, 1.8f, 6000, 20, 0.35f, 0, { { "AFTERNOON", 0, 0 }, { "3 AM", 0, -0.35f }, { "MORNING RUSH", 0, 0.35f }, { "RAIN", 0.25f, 0 } } },
@@ -874,10 +981,12 @@ const PatchDef PATCHES[NUM_LAYERS][NUM_ENVS] = {
         { "SHORELINE", l_ocean, 0.8f, 1.0f, 5000, 10, 0.25f, 6, { { "CALM", 0, 0 }, { "CHOPPY", 0.15f, 0 }, { "STORM", 0.35f, -0.2f }, { "NIGHT TIDE", -0.05f, -0.2f } } },
         { "CRYSTAL PLAINS", l_alien, 1.4f, 4.0f, 9000, 35, 0.45f, 7, { { "TWIN DAWN", 0, 0 }, { "SPORE BLOOM", 0, 0.35f }, { "ION STORM", 0.35f, -0.1f }, { "LONG NIGHT", -0.1f, -0.1f } } },
         { "FACTORY YARD", l_industrial, 1.6f, 3.0f, 4500, 30, 0.45f, 8, { { "FULL PRODUCTION", 0, 0.2f }, { "NIGHT SHIFT", 0, -0.2f }, { "RAIN ON THE ROOF", 0.3f, 0 }, { "LOCKED UP", 0.2f, -0.45f } } },
+        { "WILDFLOWER MEADOW", l_meadow, 0.9f, 0.9f, 6000, 8, 0.18f, 9, { { "SUMMER AFTERNOON", 0, 0 }, { "BUSY DAY", 0, 0.3f }, { "PASSING SHOWER", 0.25f, 0 }, { "HAZY HEAT", -0.08f, -0.15f } } },
     },
     {   /* HUMANS */
         { "TRAFFIC", h_city, NOPLACE }, { "RIVER BOAT", h_jungle, NOPLACE }, { "LIFE SUPPORT", h_space, NOPLACE },
         { "DEEP RUMBLE", h_caves, NOPLACE }, { "DISTANT ROAD", h_forest, NOPLACE }, { "AIRBOAT", h_swamp, NOPLACE },
         { "HARBOUR", h_ocean, NOPLACE }, { "VISITORS", h_alien, NOPLACE }, { "MACHINERY", h_industrial, NOPLACE },
+        { "COUNTRYSIDE", h_meadow, NOPLACE },
     },
 };

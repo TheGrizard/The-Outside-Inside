@@ -1,7 +1,7 @@
 # The Outside Inside
 
-Generative field recordings for the M-VAVE FM-1, made entirely by synthesis. Nine places to stand in, from city
-streets to an alien plain; four layers of sound that never quite repeat; for playing along with, or leaving on in
+Generative field recordings for the M-VAVE FM-1, made entirely by synthesis. Ten places to stand in, from city
+streets and a summer meadow to an alien plain; four layers of sound that never quite repeat; for playing along with, or leaving on in
 the background.
 
 ![The Outside Inside on the FM-1's screen: a forest, its weather and the time of day](img/screen.png)
@@ -23,7 +23,7 @@ installer: `python3 tools/fm1_install.py {{PKG}}`.
 | K1 to K4 | the volume of WEATHER, ANIMALS, LANDSCAPE, HUMANS (the levels rise up as you turn) |
 | SEL held + K1 to K4 | each layer's density: how often its events happen |
 | HOME held + K1 to K4 | the macros: WEATHER, TIME, ACTIVITY, ENTROPY |
-| ALGORITHM | the environment: alien, caves, city, forest, industrial, jungle, ocean, space, swamp, then your own |
+| ALGORITHM | the environment: alien, caves, city, forest, industrial, jungle, meadow, ocean, space, swamp, then your own |
 | SELECT, or tap SEL | the layer to edit; PRESET changes its preset |
 | REC | randomise the macros |
 | SAVE | save as your own environment (up to 8) |

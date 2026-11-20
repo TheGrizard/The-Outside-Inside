@@ -21,7 +21,8 @@
 static Engine eng PLAT_POOL;
 
 /* ------------------------------------------------------------------ settings */
-#define SET_MAGIC 0x4F555431u            /* "OUT1" */
+#define SET_MAGIC 0x4F555432u            /* "OUT2" (OUT1: before MEADOW and THUNDER; moved on at load) */
+#define SET_MAGIC1 0x4F555431u
 #define NUSER 8
 typedef struct { uint8_t patch[NUM_LAYERS], level[NUM_LAYERS], dens[NUM_LAYERS], mac[4]; } env_t;
 typedef struct {
@@ -66,9 +67,28 @@ static int settings_ok(void)
     return 1;
 }
 
+/* OUT1's settings: nine environments (the user's numbered from 9) and ten Earth weathers (THUNDER came in at 8) */
+static void settings_from_1(void)
+{
+    if (set.algo >= 9) set.algo++;
+    for (int i = -1; i < NUSER; i++) {
+        env_t *v = i < 0 ? &set.cur : &set.user[i];
+        if (weather_set(v->patch[L_WEATHER]) != WX_EARTH) continue;
+        int t = (int)(v->mac[0] / 100.0f * 9 + 0.5f);
+        if (t >= 8) t++;
+        v->mac[0] = (uint8_t)(weather_value(WX_EARTH, t) * 100.0f + 0.5f);
+    }
+    set.magic = SET_MAGIC;
+}
+
 static void settings_load(void)
 {
-    if (plat_store_load(OBJ_SETTINGS, &set, sizeof set) != (int)sizeof set || !settings_ok()) {
+    int n = plat_store_load(OBJ_SETTINGS, &set, sizeof set);
+    if (n == (int)sizeof set && set.magic == SET_MAGIC1) {
+        settings_from_1();
+        if (settings_ok()) store_ok = plat_store_save(OBJ_SETTINGS, &set, sizeof set) == 0;
+    }
+    if (n != (int)sizeof set || !settings_ok()) {
         settings_defaults();
         store_ok = plat_store_save(OBJ_SETTINGS, &set, sizeof set) == 0;   /* a first save: does the flash take it? */
     }
@@ -211,7 +231,7 @@ enum { PANEL_LEVELS, PANEL_DENS, PANEL_MACROS };
 /* ------------------------------------------------------------------ orders: A to Z */
 static uint8_t env_order[NUM_ENVS];                 /* the built-in environments, by name */
 static uint8_t patch_order[NUM_LAYERS][NUM_ENVS];   /* each layer's presets, by name */
-static uint8_t wx_order[WEATHER_TYPES];             /* the weather types, by name */
+static uint8_t wx_order[WX_SETS][WEATHER_MAX];      /* each world's weather types, by name */
 
 static int str_less(const char *a, const char *b)
 {
@@ -226,12 +246,12 @@ static void sort_by(uint8_t *o, int n, const char *(*name)(int, int), int arg)
 }
 static const char *env_nm(int i, int arg) { (void)arg; return ENV_NAMES[i]; }
 static const char *patch_nm(int i, int l) { return PATCHES[l][i].name; }
-static const char *wx_nm(int i, int arg) { (void)arg; return weather_name(weather_value(i)); }
+static const char *wx_nm(int i, int set) { return weather_name(set, weather_value(set, i)); }
 static void orders_init(void)
 {
     sort_by(env_order, NUM_ENVS, env_nm, 0);
     for (int l = 0; l < NUM_LAYERS; l++) sort_by(patch_order[l], NUM_ENVS, patch_nm, l);
-    sort_by(wx_order, WEATHER_TYPES, wx_nm, 0);
+    for (int w = 0; w < WX_SETS; w++) sort_by(wx_order[w], weather_count(w), wx_nm, w);
 }
 static int pos_of(const uint8_t *o, int n, int v) { for (int i = 0; i < n; i++) if (o[i] == v) return i; return 0; }
 
@@ -246,9 +266,10 @@ static const uint8_t ENV_LEVELS[NUM_ENVS][NUM_LAYERS] = {
     { 65, 55, 75, 35 },   /* OCEAN */
     { 55, 70, 65, 40 },   /* ALIEN */
     { 50, 35, 60, 75 },   /* INDUSTRIAL */
+    { 50, 70, 65, 30 },   /* MEADOW */
 };
 
-/* the environments in the order ALGORITHM steps: the nine A to Z, then the user's */
+/* the environments in the order ALGORITHM steps: the ten A to Z, then the user's */
 static int env_count(void) { return NUM_ENVS + set.nusers; }
 static int env_at(int pos) { return pos < NUM_ENVS ? env_order[pos] : pos; }
 static int env_pos(int algo) { return algo < NUM_ENVS ? pos_of(env_order, NUM_ENVS, algo) : algo; }
@@ -270,8 +291,10 @@ static void env_name(char *t)            /* with a star when a layer's preset ha
 
 /* the weather: the engine's scale runs calm to stormy (it blends neighbours and ENTROPY drifts along it); the knob
  * and OCT-/OCT+ step through the types A to Z */
-static int wx_type(void) { int t = (int)(set.cur.mac[0] / 100.0f * (WEATHER_TYPES - 1) + 0.5f); return clamp(t, 0, WEATHER_TYPES - 1); }
-static int wx_pos(void) { return pos_of(wx_order, WEATHER_TYPES, wx_type()); }
+static int wx_set(void) { return weather_set(set.cur.patch[L_WEATHER]); }   /* the weather preset's world */
+static int wx_n(void) { return weather_count(wx_set()); }
+static int wx_type(void) { int t = (int)(set.cur.mac[0] / 100.0f * (wx_n() - 1) + 0.5f); return clamp(t, 0, wx_n() - 1); }
+static int wx_pos(void) { return pos_of(wx_order[wx_set()], wx_n(), wx_type()); }
 
 static void say_text(const char *a, const char *b)
 {
@@ -330,9 +353,10 @@ static void select_layer(int l) { ui.sel = (l % NUM_LAYERS + NUM_LAYERS) % NUM_L
 static void env_load(int algo)
 {
     set.algo = (uint8_t)algo;
-    if (algo < NUM_ENVS)                 /* a built-in: its presets, its own volumes, densities as designed */
+    if (algo < NUM_ENVS) {               /* a built-in: its presets, its own volumes, densities as designed */
         for (int l = 0; l < NUM_LAYERS; l++) { set.cur.patch[l] = (uint8_t)algo; set.cur.level[l] = ENV_LEVELS[algo][l]; set.cur.dens[l] = 50; }
-    else set.cur = set.user[algo - NUM_ENVS];   /* the user's: everything as it was saved */
+        if (algo == ENV_MEADOW) set.cur.mac[0] = (uint8_t)(weather_value(WX_EARTH, 2) * 100.0f + 0.5f);   /* the meadow starts CALM */
+    } else set.cur = set.user[algo - NUM_ENVS];   /* the user's: everything as it was saved */
     changed();
     set_dirty = 0;
 }
@@ -373,7 +397,7 @@ static void dens_step(int l, int d)
 static void macro_text(int m, char *s)
 {
     s[0] = 0;
-    if (m == 0) text_cat(s, weather_name(set.cur.mac[0] / 100.0f));
+    if (m == 0) text_cat(s, weather_name(wx_set(), set.cur.mac[0] / 100.0f));
     else if (m == 1) text_cat(s, time_name(set.cur.mac[1] / 100.0f));
     else if (m == 3 && set.cur.mac[3] < 3) text_cat(s, "FIXED");
     else int_text(set.cur.mac[m], s);
@@ -381,8 +405,8 @@ static void macro_text(int m, char *s)
 
 static void weather_set_pos(int pos)
 {
-    pos = clamp(pos, 0, WEATHER_TYPES - 1);
-    set.cur.mac[0] = (uint8_t)(weather_value(wx_order[pos]) * 100.0f + 0.5f);
+    pos = clamp(pos, 0, wx_n() - 1);
+    set.cur.mac[0] = (uint8_t)(weather_value(wx_set(), wx_order[wx_set()][pos]) * 100.0f + 0.5f);
 }
 
 static void macro_step(int m, int d)
@@ -413,7 +437,7 @@ static void randomise(void)
     set_dirty = 1;
     autosave_at = plat_ms() + AUTOSAVE_MS;
     char s[30] = "";
-    text_cat(s, weather_name(eng.user.weather)); text_cat(s, " "); text_cat(s, time_name(eng.user.time));
+    text_cat(s, weather_name(eng.wset, eng.user.weather)); text_cat(s, " "); text_cat(s, time_name(eng.user.time));
     pop("RANDOMISED", s, RGB(255, 90, 78));
 }
 
@@ -600,6 +624,16 @@ static void event_sprites(const UiEvent *u)
         if ((s = spawn(SK_MOVER, l, dir > 0 ? -w : 240 + w, y, dur))) { s->vx = dir * (240.0f + 2 * w) / dur; s->a = w; s->b = h; s->blink = (uint8_t)blink; }
         break;
     }
+    case GL_BEE: {                               /* a speck that flies across, wavering */
+        float dur = u->dur_ds / 10.0f, dir = u->dir ? u->dir : 1.0f;
+        if (dur < 0.5f) dur = 3.0f;
+        if ((s = spawn(SK_MOVER, l, dir > 0 ? -4 : 244, ground_y(d) - 10 - frand() * 14, dur))) { s->vx = dir * 248.0f / dur; s->a = 2; s->b = 1; s->ty = 3; }
+        break;
+    }
+    case GL_SHEEP:                               /* on the hillside: a white blob, and its baa */
+        if ((s = spawn(SK_DOT, l, x, 70 + (1.0f - d) * 30 + frand() * 6, 2.0f))) s->a = 2;
+        if ((s = spawn(SK_RING, l, x, 68 + (1.0f - d) * 30, 1.0f))) { s->a = 2; s->b = 10; s->g = 0.5f; }
+        break;
     case GL_ROCK:
         for (int i = 0; i < 6; i++) if ((s = spawn(SK_DRIP, l, x + (frand() - 0.5f) * 14, 10 + frand() * 6, 3.0f))) { s->ty = ground_y(d) + (frand() - 0.5f) * 6; s->g = 200 + frand() * 120; s->age = -0.05f * i; s->a = 2; }
         break;
@@ -740,10 +774,10 @@ static void draw_landscape_moving(int p)
         }
         if (p == 6) { py = 0; for (int x = 0; x <= 240; x += 8) { float y = 56 + fm_sinf(x * 0.09f + ui.t); if (x) s_line(x - 8, py, x, y, dim(lc, 0.5f)); py = y; } }
     }
-    if (p == 4 || p == 1 || p == 5) {            /* grass, ferns, reeds: they lean with the gust */
+    if (p == 4 || p == 1 || p == 5 || p == 9) {  /* grass, ferns, reeds, the meadow: they lean with the gust */
         for (int x = 2; x < 240; x += (p == 5 ? 5 : 4)) {
             if (p == 5 && x > 55 && x < 185) continue;
-            int h = (p == 5 ? 12 : 4) + (x * 7) % (p == 5 ? 16 : 6);
+            int h = (p == 5 ? 12 : p == 9 ? 7 : 4) + (x * 7) % (p == 5 ? 16 : p == 9 ? 9 : 6);
             float lean = eng.gust * 6.0f + fm_sinf(ui.t * 2.0f + x * 0.1f) * (0.4f + eng.gust);
             s_line(x, 119.5f, x + lean, 119.5f - h, dim(lc, 0.7f));
         }
@@ -789,6 +823,7 @@ static void draw_scene(void)
         case SK_GUST: s_line(x, y, s->x + s->a, y, dim(c, 0.4f)); break;
         case SK_MOVER: {
             int on = !s->blink || ((int)(s->age * 4) & 1);
+            if (s->ty > 0) y += fm_sinf(s->age * 9.0f) * s->ty;   /* (a bee's wavering flight) */
             s_rect(s->x - s->a / 2, y, s->a, s->b, c);
             if (s->blink && on) s_rect(s->x, y - 1.5f, 2, 1, C_WHITE);
             break;
@@ -838,7 +873,7 @@ static void draw_panel(void)
     for (int k = 0; k < 4; k++) {
         if (ui.panel == PANEL_MACROS) {
             lab[k] = MACRO_NAME[k]; col[k] = C_TXT;
-            val[k] = k == 0 ? wx_pos() * 100 / (WEATHER_TYPES - 1) : set.cur.mac[k];
+            val[k] = k == 0 ? wx_pos() * 100 / (wx_n() - 1) : set.cur.mac[k];
             if (k == 0) vtxt[k][0] = 0; else macro_text(k, vtxt[k]);
         } else {
             lab[k] = LAYER_NAME[k]; col[k] = LAYER_C[k];
@@ -929,7 +964,7 @@ static void draw_header(void)
     cv_text(4, 1, &FONT_M, name, C_TXT);
     cv_text(236 - text_w(&FONT_S, right), 5, &FONT_S, right, set.playing ? C_SUB : RGB(255, 90, 78));
     cv_text(4, 26, &FONT_S, state, C_SUB);
-    const char *w = weather_name(eng.eff.weather);
+    const char *w = weather_name(eng.wset, eng.eff.weather);
     cv_text(236 - text_w(&FONT_S, w), 26, &FONT_S, w, C_W);
     cv_rect(0, HEAD_H - 1, 240, 1, C_RULE);
     cv_blit(0, 0);
@@ -941,7 +976,7 @@ static void speak(void)
     if (ann_on() && ann_where()) {
         char t[120] = "", n[24];
         env_name(n); text_cat(t, n); text_cat(t, ". ");
-        text_cat(t, weather_name(eng.eff.weather)); text_cat(t, ", "); text_cat(t, time_name(eng.eff.time)); text_cat(t, ". ");
+        text_cat(t, weather_name(eng.wset, eng.eff.weather)); text_cat(t, ", "); text_cat(t, time_name(eng.eff.time)); text_cat(t, ". ");
         text_cat(t, "Editing "); text_cat(t, LAYER_NAME[ui.sel]);
         ann_say(t, 0, ANN_NOW);
     }
@@ -1075,7 +1110,7 @@ void app_frame(void)
         char key[80] = "", n[24];
         ui.last_head = now;
         env_name(n); text_cat(key, n); text_cat(key, eng.state_name ? eng.state_name : "");
-        text_cat(key, weather_name(eng.eff.weather)); text_cat(key, time_name(eng.eff.time)); text_cat(key, set.playing ? "1" : "0");
+        text_cat(key, weather_name(eng.wset, eng.eff.weather)); text_cat(key, time_name(eng.eff.time)); text_cat(key, set.playing ? "1" : "0");
         int same = 1; for (int i = 0; i < 80; i++) { if (key[i] != ui.head_key[i]) { same = 0; break; } if (!key[i]) break; }
         if (!same) { for (int i = 0; i < 80; i++) ui.head_key[i] = key[i]; draw_header(); }
     }

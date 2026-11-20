@@ -148,11 +148,14 @@ void hum_render(Hum *h, Rng *r, Bus *b);
 typedef struct {
     int on, talk; float t, dur, f0, ph, fa1, fa2, fb1, fb2, amp, jit; Svf f1, f2; Spatial sp;
     float syl_t, syl_dur, gap, fric, stress, fscale, v1, v2, w1, w2, lp, nz; uint32_t seed;
+    float trem, tph;    /* a bleat's quaver (Hz; 0 = none) */
 } CVoice;
 typedef struct { float level; CVoice v[CROWD_VOICES]; float energy; } Crowd;
 
 void crowd_init(Crowd *c);
 void crowd_say(Crowd *c, float f0, float dur, float fa1, float fa2, float fb1, float fb2, float pan, float dist, float amp);
+/* a sheep: crowd_say's sweep with a quaver in its pitch and its loudness, trem times a second */
+void crowd_bleat(Crowd *c, float f0, float dur, float fa1, float fa2, float fb1, float fb2, float trem, float pan, float dist, float amp);
 /* a person: a phrase of dur seconds at about pitch f0; bright 1 = as a voice is, more for a radio's thin voice */
 void crowd_talk(Crowd *c, Rng *r, float f0, float dur, float bright, float pan, float dist, float amp);
 void crowd_render(Crowd *c, Rng *r, Bus *b);

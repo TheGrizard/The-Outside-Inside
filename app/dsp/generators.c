@@ -389,7 +389,7 @@ void hum_render(Hum *h, Rng *r, Bus *b) {
 /* ===================================== CROWD ===================================== */
 void crowd_init(Crowd *c) { memset(c, 0, sizeof *c); c->level = 0.5f; }
 
-void crowd_say(Crowd *c, float f0, float dur, float fa1, float fa2, float fb1, float fb2, float pan, float dist, float amp) {
+static CVoice *say(Crowd *c, float f0, float dur, float fa1, float fa2, float fb1, float fb2, float pan, float dist, float amp) {
     { VarCtx *vc = var_now(); f0 *= vc->pitch; amp *= vc->amp; }
     CVoice *v = 0;
     for (int i = 0; i < CROWD_VOICES; i++) if (!c->v[i].on) { v = &c->v[i]; break; }
@@ -398,6 +398,13 @@ void crowd_say(Crowd *c, float f0, float dur, float fa1, float fa2, float fb1, f
     v->on = 1; v->dur = dur; v->f0 = f0; v->fa1 = fa1; v->fa2 = fa2; v->fb1 = fb1; v->fb2 = fb2; v->amp = amp;
     spatial_set(&v->sp, pan, dist);
     c->energy += 1;
+    return v;
+}
+void crowd_say(Crowd *c, float f0, float dur, float fa1, float fa2, float fb1, float fb2, float pan, float dist, float amp) {
+    say(c, f0, dur, fa1, fa2, fb1, fb2, pan, dist, amp);
+}
+void crowd_bleat(Crowd *c, float f0, float dur, float fa1, float fa2, float fb1, float fb2, float trem, float pan, float dist, float amp) {
+    say(c, f0, dur, fa1, fa2, fb1, fb2, pan, dist, amp)->trem = trem;
 }
 
 /* the vowels' first two formants (Hz, an adult's): a, e, i, o, u, and the neutral one */
@@ -471,9 +478,10 @@ void crowd_render(Crowd *c, Rng *r, Bus *b) {
         v->jit += (rng_bi(r) * 0.04f - v->jit) * 0.2f;
         svf_set(&v->f1, v->fa1 + (v->fb1 - v->fa1) * u, 7.0f);
         svf_set(&v->f2, v->fa2 + (v->fb2 - v->fa2) * u, 9.0f);
-        float f = v->f0 * (1.0f + v->jit) * (1.0f - 0.15f * u), e = 0;
+        float f = v->f0 * (1.0f + v->jit) * (1.0f - 0.15f * u), e = 0, tr = 1.0f;
+        if (v->trem > 0) { v->tph += v->trem * dt * OUT_BLOCK; if (v->tph >= 1.0f) v->tph -= 1.0f; float q = sine_c(v->tph); f *= 1.0f + 0.03f * q; tr = 0.72f + 0.28f * q; }
         for (int i = 0; i < OUT_BLOCK; i++) {
-            if ((i & 7) == 0) { float uu = v->t / v->dur; e = sine_c(uu * 0.5f); e = e > 0 ? fm_exp2f(0.7f * fm_log2f(e + 1e-9f)) : 0; }
+            if ((i & 7) == 0) { float uu = v->t / v->dur; e = sine_c(uu * 0.5f); e = e > 0 ? fm_exp2f(0.7f * fm_log2f(e + 1e-9f)) * tr : 0; }
             v->ph += f * dt; if (v->ph >= 1.0f) v->ph -= 1.0f;
             float saw = 2.0f * v->ph - 1.0f;
             float x = svf_bp(&v->f1, saw) * 0.5f + svf_bp(&v->f2, saw) * 0.3f;

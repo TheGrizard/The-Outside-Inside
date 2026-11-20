@@ -30,7 +30,7 @@ wait 6000
 tap SAVE
 wait 200
 expect nusers 1
-expect env 9
+expect env 10
 shot saved.png
 wait 1500
 turn ALGO 1
@@ -38,7 +38,7 @@ wait 200
 expect env 7
 turn ALGO -1
 wait 200
-expect env 9
+expect env 10
 shot envlist_user.png
 turn ALGO 1
 wait 5000
@@ -57,10 +57,24 @@ wait 5000
 shot jungle.png
 turn ALGO 1
 wait 5000
+shot meadow.png
+expect env 9
+expect mac0 20
+turn ALGO 1
+wait 5000
 shot ocean.png
 turn ALGO 1
 wait 5000
 shot space.png
+press HOME
+turn K1 1
+wait 200
+shot space_weather.png
+expect mac0 100
+turn K1 -1
+wait 200
+expect mac0 20
+release HOME
 turn ALGO 1
 wait 5000
 shot swamp.png

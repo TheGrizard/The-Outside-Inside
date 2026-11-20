@@ -1,6 +1,6 @@
 # The Outside Inside
 
-Generative field recordings for the M-VAVE FM-1, made entirely by synthesis: nine places to stand in, four layers of
+Generative field recordings for the M-VAVE FM-1, made entirely by synthesis: ten places to stand in, four layers of
 sound that never quite repeat, for playing along with or leaving on in the background.
 
 By [TheGrizard](https://github.com/TheGrizard). Built on [fm1-base](https://github.com/charlesvestal/fm1-base) (MPL-2.0) and felucca-bsp. Works on both FM-1 flash
@@ -17,7 +17,7 @@ the knobs are; each column's bar shows the sound's level as it plays, the white 
 | K1 to K4 | volume of WEATHER, ANIMALS, LANDSCAPE, HUMANS (the columns show while you turn) |
 | SEL held + K1 to K4 | each layer's density: how often its events happen |
 | HOME held | shows what the knobs do now: the macros; turn K1 to K4 to set WEATHER, TIME, ACTIVITY, ENTROPY |
-| ALGORITHM | change environment, from a list: the nine built in A to Z, then your own (USER 1 ...) |
+| ALGORITHM | change environment, from a list: the ten built in A to Z, then your own (USER 1 ...) |
 | SELECT (turn), or tap SEL | choose the layer to edit (its preset list opens) |
 | PRESET | change the chosen layer's preset, A to Z |
 | REC | randomise the macros |
@@ -28,8 +28,16 @@ the knobs are; each column's bar shows the sound's level as it plays, the white 
 | HOME tapped | processor load, cores, whether settings are being saved, and what each layer costs |
 
 A built-in environment starts with its own volumes and the densities as designed; your own environments keep the
-volumes they were saved with. The weather types, A to Z: breeze, calm, downpour, drizzle, fog, gale, rain, snow,
-thunderstorm, windy.
+volumes they were saved with (and MEADOW starts calm). Each world has its own weather, and ENTROPY only drifts
+through that world's:
+
+- Earth, A to Z: breeze, calm, downpour, drizzle, fog, gale, rain, snow, thunder (dry, with the odd light shower),
+  thunderstorm, windy
+- Space: ice dust, magnetic storm, particle rain, solar flare, solar wind, still void
+- the alien world: crystal fog, howling gale, ion drizzle, ion rain, ion storm, singing wind, still air
+
+Space's and the alien world's weather also wanders slowly by itself as ENTROPY rises, over minutes. In heavy rain,
+a storm or a gale the animals go quiet and take cover (not in the jungle, which sings on; frogs love the rain).
 
 The macros:
 
