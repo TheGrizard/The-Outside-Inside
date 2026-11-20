@@ -399,12 +399,12 @@ static void patter_step(Source *s) {
     if (s->user[3] <= 0) return;                   /* user[3] drips left, user[4] timer, user[5] interval; ag[1] where */
     s->user[4] -= BLK;
     if (s->user[4] > 0) return;
-    water_spawn(&s->g.water, &s->rng, rng_range(&s->rng, 3.5f, 7.0f), s->ag[1].pan + rng_bi(&s->rng) * 0.05f, s->ag[1].dist, s->ag[1].pitch, 3.5f);
+    water_spawn(&s->g.water, &s->rng, rng_range(&s->rng, 7.0f, 13.0f), s->ag[1].pan + rng_bi(&s->rng) * 0.05f, s->ag[1].dist, s->ag[1].pitch, 3.5f);
     s->ag[1].pitch *= 0.8f; s->user[3] -= 1; s->user[4] = s->user[5] * rng_range(&s->rng, 0.6f, 1.4f);
 }
 static void cave_drip_fire(Engine *e, Source *s, float pan, float dist, float x) {
     (void)e; (void)x;
-    water_spawn(&s->g.water, &s->rng, rng_range(&s->rng, 4.0f, 9.0f), pan, dist, rng_range(&s->rng, 0.6f, 1.0f), 3.5f);
+    water_spawn(&s->g.water, &s->rng, rng_range(&s->rng, 8.0f, 16.0f), pan, dist, rng_range(&s->rng, 0.6f, 1.0f), 3.5f);   /* big, slow drops: 400-800 Hz */
     if (rng_f(&s->rng) < 0.3f) { s->user[3] = 2 + rng_int(&s->rng, 4); s->user[4] = 0.4f; s->user[5] = rng_range(&s->rng, 0.25f, 0.6f); s->ag[1].pan = pan; s->ag[1].dist = dist; s->ag[1].pitch = 0.7f; }
 }
 static void cave_drip_block(Engine *e, Source *s) { s->rate = 0.9f * (1.0f + 1.5f * e->rain); patter_step(s); }
@@ -417,7 +417,7 @@ static void rockfall_fire(Engine *e, Source *s, float pan, float dist, float x) 
 static void rockfall_block(Engine *e, Source *s) { (void)e; roll_step(s, &MAT_STONE, 0.8f, 1.0f, 0.82f); }
 static void l_caves(Engine *e) {
     Source *s = engine_add(e, "drips", L_LANDSCAPE, G_WATER, B_SCATTER);
-    s->g.water.level = 0.6f; s->g.water.rise = 0.15f; s->dist_lo = 0.1f; s->dist_hi = 0.8f; s->fire = cave_drip_fire; s->block = cave_drip_block; s->glyph = GL_DRIP;
+    s->g.water.level = 0.42f; s->g.water.rise = 0.08f; s->dist_lo = 0.1f; s->dist_hi = 0.8f; s->fire = cave_drip_fire; s->block = cave_drip_block; s->glyph = GL_DRIP;
     s = engine_add(e, "underground river", L_LANDSCAPE, G_WATER, B_BED);
     { Water *w = &s->g.water; w->dmin = 3; w->dmax = 18; w->gamma = 1.8f; w->pan_lo = 0.3f; w->pan_hi = 0.9f; w->dist_lo = 0.7f; w->dist_hi = 0.9f; w->rush_cut = 500; }
     s->block = river_block;
