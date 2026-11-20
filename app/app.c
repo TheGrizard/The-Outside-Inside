@@ -953,7 +953,7 @@ static void speak(void)
  * into a city's skyline, and the home screen takes over. The name is up from the first instant the FM-1 starts
  * (app_splash, before the sound); the line moves once the firmware runs, with the sound fading in under it. */
 #define SPLASH_MS 2000u
-#define BAND_Y 150                       /* the line's band on the screen, and its height */
+#define BAND_Y 132                       /* the line's band on the screen, and its height */
 #define BAND_H 72
 #define BASE 56                          /* the ground in the band */
 static int8_t sp_tree[240], sp_city[240];  /* the treeline's and the skyline's heights over the ground */
@@ -991,10 +991,9 @@ static void splash_shapes(void)
 static void splash_title(void)
 {
     lcd_fill(0, 0, 240, 240, C_BLACK);
-    cv_begin(240, 80, C_BLACK);
-    cv_text(120 - text_w(&FONT_L, "THE OUTSIDE") / 2, 4, &FONT_L, "THE OUTSIDE", C_WHITE);
-    cv_text(120 - text_w(&FONT_L, "INSIDE") / 2, 42, &FONT_L, "INSIDE", C_WHITE);
-    cv_blit(0, 58);
+    cv_begin(240, 32, C_BLACK);                          /* one line: 18 letters of 12 px, 216 of the 240 */
+    cv_text(120 - text_w(&FONT_M, APP_NAME) / 2, 4, &FONT_M, APP_NAME, C_WHITE);
+    cv_blit(0, 84);
 }
 
 void app_splash(void) { splash_title(); }
