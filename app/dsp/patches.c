@@ -146,8 +146,6 @@ static const Species SP_CALLER = { CALLER, 2, { "A-B", "AB" }, 2, 0.15f, 0.1f, 0
 static const Syllable BEACON = { 880, 880, CURVE_HOLD, 0.2f, 0.05f, 0, 0, 0.2f, 1.5f, 0.5f, 0, 0, 0.5f };
 static const Syllable BEEPER = { 1150, 1150, CURVE_HOLD, 0.5f, 0.02f, 0, 0, 0.15f, 0, 0, 0, 0, 0.6f };
 static const Species SP_BEEPER = { &BEEPER, 1, { "A-A-A-A-A-A-A-A" }, 1, 0, 0, 0.25f, 25.0f, 60.0f, 1, 1, 0.5f };
-static const Syllable SIREN = { 700, 1300, CURVE_SWOOP, 1.4f, 0.1f, 0, 0, 0.3f, 0, 0, 0, 0, 0.6f };
-static const Species SP_SIREN = { &SIREN, 1, { "AAAAAA" }, 1, 0.02f, 0.02f, 0.0f, 120.0f, 240.0f, 1, 1, 0.4f };
 static const Syllable TELEMETRY = { 1760, 1760, CURVE_HOLD, 0.08f, 0.1f, 0, 0, 0.1f, 0, 0, 0, 0, 0.5f };
 
 /* ======================================================================= WEATHER */
@@ -604,23 +602,54 @@ static void add_trains(Engine *e, float rate, float dlo, float dhi, float len_lo
     w->g.ring.level = 0.3f; w->block = wheels_block;
 }
 
-static void car_fire(Engine *e, Source *s, float pan, float dist, float x) {
-    (void)e; (void)pan; (void)dist; (void)x; s->pb_voice = hum_start(&s->g.hum, rng_range(&s->rng, 45, 75), 2.0f, 1.2f, 0.6f, 1.0f, 2000, 0, 0, 0, 0.6f);   /* engine, and tyres on the road */
-}
-static void people_fire(Engine *e, Source *s, float pan, float dist, float x) {
-    (void)e; (void)x;
-    float f = rng_f(&s->rng) < 0.5f ? rng_range(&s->rng, 95, 135) : rng_range(&s->rng, 175, 240);   /* men's and women's voices */
-    crowd_talk(&s->g.crowd, &s->rng, f, rng_range(&s->rng, 1.2f, 3.5f), 1.0f, pan, dist, 0.8f);
+/* The city's people, as heard from a window: distant engines. A low murmur of traffic (two engines idling and
+ * cruising, far off, drifting in pitch and loudness), and now and then one revs somewhere: its pitch rising and
+ * falling back, a soft swell. Nothing near; nothing that could pass for a voice.
+ * user[0] the rev's time, [1] its length, [2] its peak (pitch), [3] its voice + 1, [4] [5] the murmur's drift */
+static void engines_block(Engine *e, Source *s) {
+    Hum *h = &s->g.hum;
+    float act = src_tod(e, s) * (0.3f + 1.4f * e->eff.activity) * e->dens[L_HUMANS] * e->gov;
+    static const float F[2] = { 38.0f, 51.0f }, PAN[2] = { -0.5f, 0.45f };
+    for (int k = 0; k < 2; k++)
+        if (!h->v[k].on) { hum_start(h, F[k], 0.5f, 2.4f, 0.3f, 0.35f, 600, 5.5f + k, 0.06f, 0, 3.0f); spatial_set(&h->v[k].sp, PAN[k], 0.85f); }   /* (a growl in its overtones: a small speaker hears it) */
+    s->user[4] += (rng_bi(&s->rng) * 0.6f - s->user[4]) * BLK * 0.25f;   /* (traffic: a little busier, a little quieter) */
+    s->user[5] += (rng_bi(&s->rng) * 0.6f - s->user[5]) * BLK * 0.15f;
+    for (int k = 0; k < 2; k++) {
+        h->v[k].pmul = 1.0f + 0.07f * (k ? s->user[5] : s->user[4]);
+        h->v[k].target = (0.07f + 0.08f * act) * (1.0f + 0.35f * (k ? s->user[4] : s->user[5]));
+    }
+    if (s->user[3] <= 0) {                           /* a rev, now and then: about one in 15 s when it's busy */
+        if (rng_f(&s->rng) < act * 0.07f * BLK) {
+            engine_var_begin(e, s);
+            int v = hum_start(h, rng_range(&s->rng, 42, 60), 0.5f, 2.2f, 0.4f, 0.4f, 600, 0, 0, 0, 0.25f);
+            engine_var_end();
+            if (v >= 0) {
+                float pan = rng_range(&s->rng, -0.8f, 0.8f), dist = rng_range(&s->rng, 0.7f, 0.88f);   /* (a few streets away) */
+                spatial_set(&h->v[v].sp, pan, dist);
+                h->v[v].target = 0.02f;                  /* (a voice at nothing switches itself off: it starts just above) */
+                s->user[0] = 0; s->user[1] = rng_range(&s->rng, 2.5f, 4.5f); s->user[2] = rng_range(&s->rng, 1.5f, 2.2f); s->user[3] = (float)(v + 1);
+                engine_post(e, L_HUMANS, GL_CAR, pan, dist, 0, 0, s->user[1] * 2.0f);
+                s->events++; e->layer_events[L_HUMANS]++;
+            }
+        }
+        return;
+    }
+    int v = (int)s->user[3] - 1;
+    float u = (s->user[0] += BLK) / s->user[1], env;
+    if (u < 0.35f) env = fm_sin_turns(0.25f * u / 0.35f);                   /* up */
+    else if (u < 1.0f) env = 0.5f + 0.5f * fm_sin_turns(0.25f + 0.5f * (u - 0.35f) / 0.65f);   /* and back down */
+    else env = 0;
+    h->v[v].pmul = 1.0f + (s->user[2] - 1.0f) * env * env;
+    h->v[v].index = 2.2f + 1.6f * env;                          /* harder as it revs */
+    h->v[v].noise_cut = 600.0f + 900.0f * env;
+    h->v[v].target = (0.16f + 0.13f * act) * (0.2f + 0.8f * env);   /* (about 5 dB over the murmur at its height) */
+    if (u >= 1.0f) { hum_release(h, v, 1.5f); s->user[3] = 0; }
 }
 static void h_city(Engine *e) {
-    static const float tod_t[4] = { 0.6f, 1.0f, 0.9f, 0.25f }, tod_c[4] = { 0.6f, 1.0f, 0.9f, 0.2f }, tod_p[4] = { 0.4f, 1.0f, 1.0f, 0.1f };
+    static const float tod_t[4] = { 0.6f, 1.0f, 0.9f, 0.25f }, tod_c[4] = { 0.6f, 1.0f, 0.9f, 0.3f };
     Source *s = add_far_noise(e, "traffic roar", 1.8f, 500, 0.11f, 0.45f); memcpy(s->tod, tod_t, sizeof s->tod);
-    s = add_passby(e, "cars", car_fire, 0.3f, 4, 7, 0.2f, 0.55f, 0.12f, 0.6f, GL_CAR); memcpy(s->tod, tod_c, sizeof s->tod);
-    s = add_passby(e, "cars, far lane", car_fire, 0.25f, 5, 9, 0.45f, 0.75f, 0.1f, 0.45f, GL_CAR); memcpy(s->tod, tod_c, sizeof s->tod);   /* two lanes: cars overlap */
-    s = engine_add(e, "people", L_HUMANS, G_CROWD, B_SCATTER);
-    s->rate = 0.6f; s->g.crowd.level = 0.3f; s->dist_lo = 0.6f; s->dist_hi = 0.9f; s->fire = people_fire; s->glyph = GL_DOT; memcpy(s->tod, tod_p, sizeof s->tod);
-    s = engine_add(e, "siren", L_HUMANS, G_VOICE, B_PHRASE);
-    s->species[0] = &SP_SIREN; s->nspecies = 1; s->g.voice.level = 0.25f; s->dist_lo = 0.75f; s->dist_hi = 0.9f; phrase_setup(s, &s->rng, 1); s->ag[0].next = 50.0f;
+    s = engine_add(e, "distant engines", L_HUMANS, G_HUM, B_BED);
+    s->g.hum.level = 0.6f; s->glyph = GL_CAR; s->block = engines_block; memcpy(s->tod, tod_c, sizeof s->tod);
     add_jets(e, 0.025f, 0.35f, 0.6f);
     add_trains(e, 0.03f, 0.35f, 0.65f, 14, 22);
 }

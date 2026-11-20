@@ -204,6 +204,7 @@ static struct {
     uint32_t evq_tail;
     float t;                             /* animation time, seconds */
     char head_key[80];
+    uint32_t splash_t0; int splash_on, touched;   /* the opening animation; any control skips it */
 } ui;
 enum { PANEL_LEVELS, PANEL_DENS, PANEL_MACROS };
 
@@ -463,10 +464,13 @@ static void info(void)
 }
 
 /* ------------------------------------------------------------------ input */
+static int32_t enc(int e) { int32_t d = plat_enc(e); if (d) ui.touched = 1; return d; }
+
 static void input(void)
 {
     uint32_t btn = plat_buttons(), keys = plat_keys();
     uint32_t down = btn & ~ui.btn, up = ui.btn & ~btn;
+    if (down || (keys & ~ui.keys)) ui.touched = 1;
     static const uint8_t WK[16] = PLAT_WHITE_KEYS;
     int32_t d;
 
@@ -483,14 +487,14 @@ static void input(void)
         if ((keys & ~ui.keys) >> WK[l] & 1u) eng.oneshot[l] = 1;
 
     for (int k = 0; k < 4; k++) {
-        if ((d = plat_enc(EN_K1 + k)) == 0) continue;
+        if ((d = enc(EN_K1 + k)) == 0) continue;
         if (btn >> B_HOME & 1u) { macro_step(k, (int)d); ui.home_used = 1; }
         else if (btn >> B_SEL & 1u) { dens_step(k, (int)d); ui.sel_used = 1; }
         else level_step(k, (int)d);
     }
-    if ((d = plat_enc(EN_ALGO)) != 0) env_step((int)d);
-    if ((d = plat_enc(EN_PRESET)) != 0) patch_step((int)d);
-    if ((d = plat_enc(EN_SELECT)) != 0) select_layer(ui.sel + (int)d);
+    if ((d = enc(EN_ALGO)) != 0) env_step((int)d);
+    if ((d = enc(EN_PRESET)) != 0) patch_step((int)d);
+    if ((d = enc(EN_SELECT)) != 0) select_layer(ui.sel + (int)d);
     if (btn & (1u << B_SEL | 1u << B_HOME)) ui.panel_until = plat_ms() + 1500u;   /* held: the panel stays */
 
     ui.btn = btn;
@@ -944,15 +948,100 @@ static void speak(void)
     ann_tick(plat_ms());
 }
 
-void app_ui_init(void)
+/* ------------------------------------------------------------------ the opening: two seconds
+ * Black, THE OUTSIDE INSIDE in white; under it a line draws itself out as a wave, then turns into a treeline, then
+ * into a city's skyline, and the home screen takes over. The name is up from the first instant the FM-1 starts
+ * (app_splash, before the sound); the line moves once the firmware runs, with the sound fading in under it. */
+#define SPLASH_MS 2000u
+#define BAND_Y 150                       /* the line's band on the screen, and its height */
+#define BAND_H 72
+#define BASE 56                          /* the ground in the band */
+static int8_t sp_tree[240], sp_city[240];  /* the treeline's and the skyline's heights over the ground */
+
+static void splash_shapes(void)
+{
+    uint32_t r = 0x5EED5u;
+#define SRND(n) ((int)((r = r * 1664525u + 1013904223u) >> 16) % (n))
+    memset(sp_tree, 0, sizeof sp_tree);
+    for (int x = 12; x < 230; x += 17 + SRND(11)) {       /* firs and round trees, side by side */
+        if (SRND(2)) {
+            int h = 18 + SRND(16), w = 8 + SRND(4);
+            for (int dx = -w; dx <= w; dx++)
+                if (x + dx >= 0 && x + dx < 240) { int v = h - (dx < 0 ? -dx : dx) * h / w; if (v > sp_tree[x + dx]) sp_tree[x + dx] = (int8_t)v; }
+        } else {
+            int rr = 8 + SRND(5), top = 6 + SRND(9);
+            for (int dx = -rr; dx <= rr; dx++)
+                if (x + dx >= 0 && x + dx < 240) {
+                    int v = top + (int)fm_sqrtf((float)(rr * rr - dx * dx));
+                    if (v > sp_tree[x + dx]) sp_tree[x + dx] = (int8_t)v;
+                }
+        }
+    }
+    memset(sp_city, 0, sizeof sp_city);
+    for (int x = 12; x < 228;) {                           /* blocks, now and then a step or a mast */
+        int w = 10 + SRND(15), h = 12 + SRND(30);
+        for (int i = 0; i < w && x + i < 228; i++) sp_city[x + i] = (int8_t)h;
+        if (!SRND(3)) for (int i = w / 3; i < w - w / 3 && x + i < 228; i++) sp_city[x + i] = (int8_t)(h + 6);
+        if (!SRND(4) && x + w / 2 < 228) { sp_city[x + w / 2] = (int8_t)(h + 14); sp_city[x + w / 2 + 1] = (int8_t)(h + 14); }
+        x += w + SRND(3);
+    }
+#undef SRND
+}
+
+static void splash_title(void)
 {
     lcd_fill(0, 0, 240, 240, C_BLACK);
+    cv_begin(240, 80, C_BLACK);
+    cv_text(120 - text_w(&FONT_L, "THE OUTSIDE") / 2, 4, &FONT_L, "THE OUTSIDE", C_WHITE);
+    cv_text(120 - text_w(&FONT_L, "INSIDE") / 2, 42, &FONT_L, "INSIDE", C_WHITE);
+    cv_blit(0, 58);
+}
+
+void app_splash(void) { splash_title(); }
+
+static float smooth(float t) { t = t < 0 ? 0 : t > 1 ? 1 : t; return t * t * (3.0f - 2.0f * t); }
+
+static void splash_frame(uint32_t ms)
+{
+    float t = ms / 1000.0f;
+    float draw = smooth((t - 0.1f) / 0.55f);               /* the pen: 0.1 - 0.65 s, left to right */
+    float to_trees = smooth((t - 0.85f) / 0.4f), to_city = smooth((t - 1.45f) / 0.4f);
+    int x0 = 12, x1 = 228, head = x0 + (int)((x1 - x0) * draw);
+    cv_begin(240, BAND_H, C_BLACK);
+    int py = 0;
+    for (int x = x0; x <= head; x++) {
+        float edge = (x - x0) < 18 ? (x - x0) / 18.0f : (x1 - x) < 18 ? (x1 - x) / 18.0f : 1.0f;
+        float wave = 7.0f * fm_sinf(x * 0.121f - t * 3.0f) + 2.5f * fm_sinf(x * 0.27f + 1.3f + t * 2.0f);
+        float h = wave + (sp_tree[x] - wave) * to_trees;
+        h += (sp_city[x] - h) * to_city;
+        int y = BASE - (int)(h * edge);
+        if (x > x0) cv_line(x - 1, py, x, y, C_WHITE);
+        py = y;
+    }
+    if (draw < 1.0f) cv_rect(head - 1, py - 1, 3, 3, C_WHITE);   /* the pen's tip */
+    cv_blit(0, BAND_Y);
+}
+
+static void splash_end(void)
+{
+    ui.splash_on = 0;
+    lcd_fill(0, 0, 240, 240, C_BLACK);
+    ui.head_key[0] = 0;
+    ui.last_view = ui.last_head = plat_ms();
+    draw_header();
+}
+
+void app_ui_init(void)
+{
     memset(spr, 0, sizeof spr);
     orders_init();
+    splash_shapes();
     ui.sel = 1;
-    ui.last_view = ui.last_head = plat_ms();
     ui.evq_tail = eng.uiq_head;
-    draw_header();
+    splash_title();                      /* (again: the host has no boot splash, and the device's is the same) */
+    ui.splash_on = 1;
+    ui.splash_t0 = plat_ms();
+    ui.touched = 0;
 }
 
 void app_frame(void)
@@ -960,6 +1049,11 @@ void app_frame(void)
     uint32_t now = plat_ms();
     input();
     speak();
+    if (ui.splash_on) {
+        static uint32_t last;
+        if (ui.touched || now - ui.splash_t0 >= SPLASH_MS) splash_end();
+        else { if (now - last >= 30u) { last = now; splash_frame(now - ui.splash_t0); } return; }
+    }
     if (now - ui.last_view >= 40u) {             /* the scene at 25 frames a second */
         float dt = (now - ui.last_view) / 1000.0f;
         if (dt > 0.2f) dt = 0.2f;

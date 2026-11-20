@@ -1,4 +1,4 @@
-/* Outside: the app's half of the contract with fm1-base (device/unity.c, host/plat_host.c). */
+/* The Outside Inside: the app's half of the contract with fm1-base (device/unity.c, host/plat_host.c). */
 #pragma once
 #include <stdint.h>
 #include "plat.h"
@@ -6,6 +6,8 @@
 #define APP_NAME "THE OUTSIDE INSIDE"
 #define APP_BIG_FONT FONT_M          /* the splash's name in 24 px, so all three words fit across the screen */
 #define APP_SPLASH_RGB RGB(91, 209, 122)
+#define APP_SPLASH                       /* our own first screen (app_splash): black, the name in white */
+void app_splash(void);
 #define APP_BLOCK 256u                   /* frames per audio block: 5.8 ms at 44.1 kHz */
 
 /* the store: the settings (with the user environments) and the panel's calibration */
