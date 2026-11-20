@@ -52,7 +52,7 @@ git submodule. JieLi's compiler for the FM-1's chip runs on Linux (on Windows, i
 container).
 
     git clone --recursive https://github.com/TheGrizard/The-Outside-Inside
-    cd the-outside-inside
+    cd The-Outside-Inside
     base/tools/setup_toolchain.sh        # JieLi's compiler and the AC79 SDK's three files, checked against a lock
     ./build.sh                           # app/build/the-outside-inside.fwsc
 
