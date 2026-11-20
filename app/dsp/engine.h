@@ -70,6 +70,8 @@ struct Source {
     float sw_ph, sw_rate, sw_lo, sw_hi, *swell_out;
     int pb_on, pb_voice; float pb_t, pb_len, pb_dir, pb_doppler, pb_len_lo, pb_len_hi;
     float t_next, cool; Rng rng; int events; float user[6];
+    int novar;                  /* as designed, no variety (SPACE and ALIEN: they are right as they are) */
+    float vw_p, vw_r, vt_p, vt_r, vt_left;   /* variety: its pitch and rate wandering over minutes (and where to) */
 };
 
 #define MAX_SOURCES 18
@@ -116,6 +118,8 @@ struct Engine {
     Bus bus[NUM_LAYERS];
     /* the app's block rendered in three steps, so two cores can share the layers (engine_block_*) */
     Bus xb[ENGINE_SUB][NUM_LAYERS];
+    /* a light phaser on ALIEN's weather (ION STORM): four all-passes a side, swept slowly, the sides apart */
+    struct { float z[2][4], fb[2], ph; } phaser;
     float xg[ENGINE_SUB][NUM_LAYERS];   /* each layer's gain, block by block */
     int nsub;
     uint32_t (*clock)(void);            /* optional: a tick counter, to measure each layer's cost */
@@ -171,6 +175,9 @@ void engine_post(Engine *e, int layer, int glyph, float pan, float dist, int a, 
 /* for patches */
 Source *engine_add(Engine *e, const char *name, int layer, GenKind gk, BehKind beh);
 float src_tod(const Engine *e, const Source *s);
+/* for an event a patch starts itself (from its block): the variety every event gets */
+void engine_var_begin(Engine *e, Source *s);
+void engine_var_end(void);
 void phrase_setup(Source *s, Rng *r, int nagents);
 void chorus_setup(Source *s, Rng *r, int nagents, float p_lo, float p_hi);
 

@@ -170,6 +170,7 @@ void water_init(Water *w) {
 }
 
 void water_spawn(Water *w, Rng *r, float d, float pan, float dist, float amp, float decay_mul) {
+    { VarCtx *vc = var_now(); d /= vc->pitch; amp *= vc->amp; }          /* (variety: dsp.h) */
     Bubble *v = 0; float quiet = 1e9f;
     for (int i = 0; i < WATER_VOICES; i++) {
         if (!w->v[i].on) { v = &w->v[i]; break; }
@@ -231,6 +232,7 @@ void water_render(Water *w, Rng *r, Bus *b) {
 void voice_init(Voice *v) { memset(v, 0, sizeof *v); v->level = 0.5f; }
 
 void voice_play(Voice *v, const Syllable *s, float pitch_mul, float tempo_mul, float pan, float dist, float amp) {
+    { VarCtx *vc = var_now(); pitch_mul *= vc->pitch; amp *= vc->amp; }
     VVoice *x = 0; float oldest = -1;
     for (int i = 0; i < VOICE_VOICES; i++) {
         if (!v->v[i].on) { x = &v->v[i]; break; }
@@ -287,6 +289,7 @@ void voice_render(Voice *v, Bus *b) {
 void ring_init(Ring *g) { memset(g, 0, sizeof *g); g->level = 0.5f; }
 
 void ring_strike(Ring *g, Rng *r, const Material *m, float freq, float amp, float bright, float decay_mul, float pan, float dist) {
+    { VarCtx *vc = var_now(); freq *= vc->pitch; amp *= vc->amp; bright *= vc->bright; if (bright > 0.98f) bright = 0.98f; }
     RVoice *v = 0; float quiet = 1e9f;
     for (int i = 0; i < RING_VOICES; i++) {
         if (!g->v[i].on) { v = &g->v[i]; break; }
@@ -336,6 +339,7 @@ void ring_render(Ring *g, Rng *r, Bus *b) {
 void hum_init(Hum *h) { memset(h, 0, sizeof *h); h->level = 0.5f; }
 
 int hum_start(Hum *h, float f, float ratio, float index, float detune, float noise, float noise_cut, float vib_rate, float vib_depth, float amp, float att_s) {
+    { VarCtx *vc = var_now(); f *= vc->pitch; amp *= vc->amp; noise_cut *= vc->bright; }
     int idx = -1;
     for (int i = 0; i < HUM_VOICES; i++) if (!h->v[i].on) { idx = i; break; }
     if (idx < 0) return -1;
@@ -386,6 +390,7 @@ void hum_render(Hum *h, Rng *r, Bus *b) {
 void crowd_init(Crowd *c) { memset(c, 0, sizeof *c); c->level = 0.5f; }
 
 void crowd_say(Crowd *c, float f0, float dur, float fa1, float fa2, float fb1, float fb2, float pan, float dist, float amp) {
+    { VarCtx *vc = var_now(); f0 *= vc->pitch; amp *= vc->amp; }
     CVoice *v = 0;
     for (int i = 0; i < CROWD_VOICES; i++) if (!c->v[i].on) { v = &c->v[i]; break; }
     if (!v) v = &c->v[0];
@@ -395,11 +400,72 @@ void crowd_say(Crowd *c, float f0, float dur, float fa1, float fa2, float fb1, f
     c->energy += 1;
 }
 
+/* the vowels' first two formants (Hz, an adult's): a, e, i, o, u, and the neutral one */
+static const float VOWEL[6][2] = { { 730, 1090 }, { 530, 1840 }, { 300, 2200 }, { 570, 840 }, { 320, 900 }, { 500, 1500 } };
+
+static uint32_t cv_rand(CVoice *v) { v->seed ^= v->seed << 13; v->seed ^= v->seed >> 17; v->seed ^= v->seed << 5; return v->seed; }
+static float cv_f(CVoice *v) { return (cv_rand(v) >> 8) * (1.0f / 16777216.0f); }
+
+static void syllable(CVoice *v) {                   /* the next syllable: its length, its vowel, a stress, a consonant */
+    v->syl_t = 0;
+    v->syl_dur = 0.12f + 0.16f * cv_f(v);           /* about five a second */
+    const float *a = VOWEL[cv_rand(v) % 6];
+    v->w1 = a[0] * v->fscale; v->w2 = a[1] * v->fscale;
+    v->stress = 0.75f + 0.5f * cv_f(v);
+    v->gap = 0.18f + 0.15f * cv_f(v);               /* the consonant: the start of the syllable, quieter */
+    v->fric = cv_f(v) < 0.45f ? 0.5f + 0.5f * cv_f(v) : 0;   /* s, sh, f, t: a little hiss in it, or none */
+}
+
+void crowd_talk(Crowd *c, Rng *r, float f0, float dur, float bright, float pan, float dist, float amp) {
+    { VarCtx *vc = var_now(); f0 *= vc->pitch; amp *= vc->amp; bright *= 0.9f + 0.1f * vc->bright; }
+    CVoice *v = 0;
+    for (int i = 0; i < CROWD_VOICES; i++) if (!c->v[i].on) { v = &c->v[i]; break; }
+    if (!v) return;                                  /* everyone talking already: this one waits its turn */
+    memset(v, 0, sizeof *v);
+    v->on = 1; v->talk = 1; v->dur = dur; v->f0 = f0; v->amp = amp;
+    v->seed = rng_u32(r) | 1u;
+    v->fscale = (f0 > 160 ? 1.15f : 1.0f) * bright;  /* (higher voices, smaller vocal tracts) */
+    syllable(v);
+    v->v1 = v->w1; v->v2 = v->w2;
+    spatial_set(&v->sp, pan, dist);
+    c->energy += 1;
+}
+
+static void talk_render(Crowd *c, CVoice *v, Rng *r, Bus *b) {
+    const float dt = 1.0f / OUT_SR;
+    float u = v->t / v->dur;
+    if (u >= 1.0f) { v->on = 0; return; }
+    v->v1 += (v->w1 - v->v1) * 0.12f; v->v2 += (v->w2 - v->v2) * 0.12f;   /* the mouth moving to the vowel */
+    svf_set(&v->f1, v->v1, 4.0f);
+    svf_set(&v->f2, v->v2, 5.0f);
+    v->jit += (rng_bi(r) * 0.03f - v->jit) * 0.3f;
+    float f = v->f0 * (1.12f - 0.22f * u) * (0.94f + 0.12f * v->stress) * (1.0f + v->jit);   /* falling across the phrase */
+    float edge = u < 0.08f ? u / 0.08f : u > 0.9f ? (1.0f - u) / 0.1f : 1.0f;           /* the phrase's ends */
+    float lpk = 1.0f - fm_expf(-TWO_PI_F * 900.0f / OUT_SR);   /* the buzz smoothed: a voice, not a saw */
+    for (int i = 0; i < OUT_BLOCK; i++) {
+        float q = v->syl_t / v->syl_dur, e, hiss = 0;
+        if (q < v->gap) { float g = q / v->gap; e = 0.15f * g; hiss = v->fric * fm_sinf(g * 3.14159f); }
+        else { float g = (q - v->gap) / (1.0f - v->gap); e = sine_c(g * 0.5f); e *= e * (2.0f - e); }
+        e *= v->stress * edge;
+        v->ph += f * dt; if (v->ph >= 1.0f) v->ph -= 1.0f;
+        float saw = 2.0f * v->ph - 1.0f, n = rng_bi(r);
+        v->lp += (saw - v->lp) * lpk;
+        float src = v->lp * 1.6f + n * 0.22f;                        /* voiced, and breath */
+        float x = (svf_bp(&v->f1, src) * 0.8f + svf_bp(&v->f2, src) * 0.45f) * e;
+        float d = n - v->nz; v->nz = n;                              /* the hiss: noise's top half */
+        x += d * hiss * 0.05f * edge;
+        emit(b, i, &v->sp, x * v->amp * c->level);
+        v->t += dt; v->syl_t += dt;
+        if (v->syl_t >= v->syl_dur) syllable(v);
+    }
+}
+
 void crowd_render(Crowd *c, Rng *r, Bus *b) {
     const float dt = 1.0f / OUT_SR;
     for (int k = 0; k < CROWD_VOICES; k++) {
         CVoice *v = &c->v[k];
         if (!v->on) continue;
+        if (v->talk) { talk_render(c, v, r, b); continue; }
         float u = v->t / v->dur;
         if (u >= 1.0f) { v->on = 0; continue; }
         v->jit += (rng_bi(r) * 0.04f - v->jit) * 0.2f;

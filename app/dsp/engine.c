@@ -50,8 +50,41 @@ float src_tod(const Engine *e, const Source *s) {
 }
 
 /* how strongly a source is active right now: time of day, weather, activity, startle, its layer's density */
+VarCtx g_var[2] = { { 1, 1, 1 }, { 1, 1, 1 } };
+uint32_t (*g_var_core)(void);
+
+/* variety: every event a little different (pitch +-3 %, loudness +-25 %, brightness +-15 %), on top of the source's
+ * own slow drift; more of both with ENTROPY */
+static void var_begin(Engine *e, Source *s, int each) {
+    VarCtx *v = var_now();
+    if (s->novar) { v->pitch = v->amp = v->bright = 1.0f; return; }
+    float k = 1.0f + e->ent;
+    v->pitch = 1.0f + s->vw_p;
+    v->amp = 1.0f; v->bright = 1.0f;
+    if (each) {
+        v->pitch *= 1.0f + 0.03f * k * (rng_f(&s->rng) + rng_f(&s->rng) - 1.0f);
+        v->amp = 1.0f + 0.25f * (rng_f(&s->rng) + rng_f(&s->rng) - 1.0f) * 2.0f;
+        v->bright = 1.0f + 0.15f * k * rng_bi(&s->rng);
+    }
+}
+static void var_end(void) { VarCtx *v = var_now(); v->pitch = v->amp = v->bright = 1.0f; }
+void engine_var_begin(Engine *e, Source *s) { var_begin(e, s, 1); }
+void engine_var_end(void) { var_end(); }
+static void var_drift(Engine *e, Source *s) {    /* where its pitch and its pace wander to next, every 20-70 s */
+    if (s->novar) return;
+    s->vt_left -= BLOCK_S;
+    if (s->vt_left <= 0) {
+        float k = 0.5f + e->ent;
+        s->vt_p = 0.05f * k * rng_bi(&s->rng);
+        s->vt_r = 0.45f * rng_bi(&s->rng);
+        s->vt_left = rng_range(&s->rng, 20.0f, 70.0f);
+    }
+    s->vw_p += (s->vt_p - s->vw_p) * (BLOCK_S / 10.0f);
+    s->vw_r += (s->vt_r - s->vw_r) * (BLOCK_S / 6.0f);
+}
+
 static float src_life(Engine *e, Source *s) {
-    float x = src_tod(e, s);
+    float x = src_tod(e, s) * (1.0f + s->vw_r);   /* (busier and quieter spells, so no rate stays even) */
     if (s->layer == L_ANIMALS) x *= e->animals_w;
     if (s->rain_resp > 0) x *= 1.0f + s->rain_resp * e->rain;
     if (s->alive) x *= e->actf;
@@ -131,7 +164,9 @@ static void apply_patch(Engine *e, int layer, int patch) {
     e->patch[layer] = patch;
     if (patch < 0 || patch >= NUM_ENVS) return;
     const PatchDef *p = &PATCHES[layer][patch];
+    int first = e->nsrc;
     if (p->build) p->build(e);
+    if (patch == 2 || patch == 7) for (int i = first; i < e->nsrc; i++) e->src[i].novar = 1;   /* SPACE, ALIEN */
     if (layer == L_LANDSCAPE) {
         reverb_init(&e->rv, p->rv_size, p->rv_rt60, p->rv_damp, p->rv_pre, p->rv_mix);
         e->state = 0; e->state_left = 120.0f;
@@ -162,7 +197,7 @@ void chorus_setup(Source *s, Rng *r, int n, float p_lo, float p_hi) {
 
 /* ------------------------------------------------------------------ behaviours */
 static void fire(Engine *e, Source *s, float pan, float dist, float x) {
-    if (s->fire) s->fire(e, s, pan, dist, x);
+    if (s->fire) { var_begin(e, s, 1); s->fire(e, s, pan, dist, x); var_end(); }
     s->events++; e->layer_events[s->layer]++;
     engine_post(e, s->layer, s->glyph, pan, dist, 0, 0, 0);
 }
@@ -231,7 +266,9 @@ static void beh_phrase(Engine *e, Source *s) {
         int idx = c - 'A';
         if (idx < 0 || idx >= sp->nsyl) { a->next = sp->gap; continue; }
         const Syllable *sy = &sp->syl[idx];
+        var_begin(e, s, 0);                         /* (a song keeps its own pitches: only the slow drift) */
         voice_play(&s->g.voice, sy, a->pitch, a->tempo, a->pan + rng_bi(r) * 0.03f, a->dist, sp->amp);
+        var_end();
         s->events++; e->layer_events[s->layer]++;
         a->next = sy->dur / a->tempo + sp->gap * rng_range(r, 0.7f, 1.3f) / a->tempo;
     }
@@ -249,8 +286,10 @@ static void beh_chorus(Engine *e, Source *s) {
         a->ph += BLOCK_S / a->per;
         if (a->ph >= 1.0f) {
             a->ph -= 1.0f; fired = 1;
+            var_begin(e, s, 1);
             if (s->c_syl) { voice_play(&s->g.voice, s->c_syl, a->pitch, 1.0f, a->pan, a->dist, 1.0f); s->events++; e->layer_events[s->layer]++; }
             else if (s->fire) s->fire(e, s, a->pan, a->dist, a->pitch);
+            var_end();
             engine_post(e, s->layer, s->glyph, a->pan, a->dist, 0, 0, 0);
             a->per += rng_bi(r) * 0.02f * a->per;
             if (a->per < s->c_p0) a->per = s->c_p0; if (a->per > s->c_p1) a->per = s->c_p1;
@@ -284,7 +323,7 @@ static void beh_passby(Engine *e, Source *s) {
         if ((rate > 0 && rng_f(&s->rng) < rate * BLOCK_S) || s->t_next < 0) {
             s->t_next = 0;
             s->pb_voice = -1;
-            if (s->fire) s->fire(e, s, 0, 0, 0);       /* the patch starts a HUM voice and sets pb_voice */
+            if (s->fire) { var_begin(e, s, 1); s->fire(e, s, 0, 0, 0); var_end(); }   /* the patch starts a HUM voice, sets pb_voice */
             if (s->pb_voice >= 0) {
                 s->pb_on = 1; s->pb_t = 0;
                 s->pb_len = rng_range(&s->rng, s->pb_len_lo, s->pb_len_hi);
@@ -398,6 +437,7 @@ static void layer_render(Engine *e, int layer, Bus *b) {
     for (int i = 0; i < e->nsrc; i++) {
         Source *s = &e->src[i];
         if (s->layer != layer) continue;
+        var_drift(e, s);
         if (s->block) s->block(e, s);
         switch (s->beh) {
         case B_SCATTER: beh_scatter(e, s, 0); break;
@@ -422,7 +462,26 @@ static void control(Engine *e, float *g) {
     for (int l = 0; l < NUM_LAYERS; l++) g[l] = e->level[l] * e->level[l] * e->fade[l] * e->master_fade * 1.3f;
 }
 
+static void phaser_run(Engine *e, float *L, float *R) {
+    float *io[2] = { L, R };
+    e->phaser.ph += BLOCK_S / 8.0f; if (e->phaser.ph >= 1.0f) e->phaser.ph -= 1.0f;   /* one sweep in 8 s */
+    for (int c = 0; c < 2; c++) {
+        float lfo = 0.5f + 0.5f * fm_sin_turns(e->phaser.ph + c * 0.25f);              /* the sides a quarter apart */
+        float f = 300.0f * fm_exp2f(lfo * 3.06f);                                          /* 300 Hz .. 2.5 kHz */
+        float t = fm_tanf(3.14159265f * f / OUT_SR), a = (1.0f - t) / (1.0f + t);
+        float *z = e->phaser.z[c], fb = e->phaser.fb[c];
+        for (int i = 0; i < OUT_BLOCK; i++) {
+            float x = io[c][i], y = x + fb * 0.35f;
+            for (int k = 0; k < 4; k++) { float o = -a * y + z[k]; z[k] = y + a * o; y = o; }
+            fb = y;
+            io[c][i] = x * 0.8f + y * 0.45f;                                             /* light: notches, not a wash */
+        }
+        e->phaser.fb[c] = fb + 1e-18f;
+    }
+}
+
 static void mix(Engine *e, Bus *bus, const float *gains, float *outL, float *outR) {
+    if (e->patch[L_WEATHER] == 7) phaser_run(e, bus[L_WEATHER].L, bus[L_WEATHER].R);   /* ALIEN's ion storm */
     float sL[OUT_BLOCK] = { 0 }, sR[OUT_BLOCK] = { 0 }, rL[OUT_BLOCK], rR[OUT_BLOCK];
     for (int i = 0; i < OUT_BLOCK; i++) { outL[i] = 0; outR[i] = 0; }
     for (int l = 0; l < NUM_LAYERS; l++) {
@@ -470,6 +529,7 @@ static uint32_t now(Engine *e) { return e->clock ? e->clock() : 0; }
 static void cost_add(Engine *e, int k, uint32_t t0) { if (e->clock) e->cost[k] += ((float)(now(e) - t0) - e->cost[k]) * 0.05f; }
 
 void engine_block_begin(Engine *e, int nsub) {
+    g_var_core = e->core;
     e->nsub = nsub > ENGINE_SUB ? ENGINE_SUB : nsub < 1 ? 1 : nsub;
     e->swell_peak = 0;
     for (int k = 0; k < e->nsub; k++) { control(e, e->xg[k]); e->t += BLOCK_S; }

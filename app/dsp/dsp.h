@@ -47,6 +47,14 @@ static inline float sine_c(float ph) {
 /* Denormals: a filter left ringing down to nothing reaches numbers so small that some FPUs (the host's, maybe the
  * FM-1's) take a slow path for each one: rain's filters alone cost five times more. A whisper of noise, about -370 dB,
  * keeps every recursive state in the normal range. */
+/* Variety: while an event starts, the engine sets how this one differs from the last (its pitch, loudness and
+ * brightness, a little each time, and drifting over minutes); the generators' starts (water_spawn, ring_strike,
+ * voice_play, hum_start, crowd_*) take it. One for each core: the two render layers at once. */
+typedef struct { float pitch, amp, bright; } VarCtx;
+extern VarCtx g_var[2];
+extern uint32_t (*g_var_core)(void);
+static inline VarCtx *var_now(void) { return &g_var[g_var_core ? (g_var_core() & 1u) : 0]; }
+
 static float dn_v = 1e-18f;
 static inline float dn(void) { dn_v = -dn_v; return dn_v; }   /* +-1e-18, alternating: cheaper than noise, and as good */
 

@@ -434,23 +434,34 @@ static void detail_block(Engine *e, Source *s) { (void)e; roll_step(s, &MAT_WOOD
 static void l_forest(Engine *e) {
     add_rustle(e, "leaf rustle", 2000, 0.12f, 0.45f);
     Source *s = engine_add(e, "brook", L_LANDSCAPE, G_WATER, B_BED);
-    { Water *w = &s->g.water; w->rate = 280; w->dmin = 1.5f; w->dmax = 12; w->gamma = 2.2f; w->level = 0.36f;
-      w->pan_lo = -0.75f; w->pan_hi = 0.2f; w->dist_lo = 0.15f; w->dist_hi = 0.45f; w->rush = 0.25f; w->rush_cut = 1200; }
+    { Water *w = &s->g.water; w->rate = 420; w->dmin = 1.0f; w->dmax = 5.5f; w->gamma = 2.6f; w->level = 0.4f; w->rise = 0.04f;
+      w->pan_lo = -0.75f; w->pan_hi = 0.2f; w->dist_lo = 0.2f; w->dist_hi = 0.5f; w->rush = 0.55f; w->rush_cut = 2200; }   /* a gentle brook */
     s = engine_add(e, "woodland detail", L_LANDSCAPE, G_RING, B_SCATTER);
     s->rate = 0.12f; s->g.ring.level = 0.5f; s->dist_lo = 0.2f; s->dist_hi = 0.8f; s->glyph = GL_BAR;
     s->tod[0] = 1; s->tod[1] = 1; s->tod[2] = 0.7f; s->tod[3] = 0.1f;
     s->fire = detail_fire; s->block = detail_block;
 }
 
+/* marsh gas: big, slow bubbles from the mud (18-40 mm, about 160-360 Hz), now and then a short run of them */
 static void gloop_fire(Engine *e, Source *s, float pan, float dist, float x) {
-    (void)e; (void)x; water_spawn(&s->g.water, &s->rng, rng_range(&s->rng, 8.0f, 22.0f), pan, dist, rng_range(&s->rng, 0.6f, 1.0f), 2.0f);
+    (void)e; (void)x;
+    water_spawn(&s->g.water, &s->rng, rng_range(&s->rng, 18.0f, 40.0f), pan, dist, rng_range(&s->rng, 0.6f, 1.0f), 2.6f);
+    if (rng_f(&s->rng) < 0.35f) { s->user[3] = 1 + rng_int(&s->rng, 3); s->user[4] = rng_range(&s->rng, 0.12f, 0.3f); s->user[0] = pan; s->user[1] = dist; }
+}
+static void gloop_block(Engine *e, Source *s) {
+    (void)e;
+    if (s->user[3] <= 0) return;
+    s->user[4] -= BLK;
+    if (s->user[4] > 0) return;
+    water_spawn(&s->g.water, &s->rng, rng_range(&s->rng, 14.0f, 30.0f), s->user[0] + rng_bi(&s->rng) * 0.04f, s->user[1], rng_range(&s->rng, 0.4f, 0.8f), 2.6f);
+    s->user[3] -= 1; s->user[4] = rng_range(&s->rng, 0.1f, 0.35f);
 }
 static void lap_block(Engine *e, Source *s) {
     if (e->swell_peak) water_burst(&s->g.water, 6 + rng_int(&s->rng, 6), 0.6f, rng_range(&s->rng, -0.6f, 0.6f), rng_range(&s->rng, 0.15f, 0.35f), 3, 9);
 }
 static void l_swamp(Engine *e) {
     Source *s = engine_add(e, "bubbles", L_LANDSCAPE, G_WATER, B_SCATTER);
-    s->rate = 0.8f; s->g.water.level = 0.5f; s->g.water.rise = 0.2f; s->dist_lo = 0.15f; s->dist_hi = 0.6f; s->fire = gloop_fire; s->glyph = GL_RING;
+    s->rate = 0.7f; s->g.water.level = 0.3f; s->g.water.rise = 0.05f; s->dist_lo = 0.15f; s->dist_hi = 0.6f; s->fire = gloop_fire; s->block = gloop_block; s->glyph = GL_RING;
     s = engine_add(e, "lapping water", L_LANDSCAPE, G_AIR, B_SWELL);
     s->g.air.colour = 1.3f; s->g.air.cutoff = 600; s->g.air.gust_depth = 0.9f; s->g.air.swell_amt = 1.0f; s->g.air.level = 0.15f;
     s->g.air.width = 0.9f; s->g.air.send = 0.2f; s->sw_lo = 2.5f; s->sw_hi = 4.5f;
@@ -460,27 +471,43 @@ static void l_swamp(Engine *e) {
 }
 
 static void surf_block(Engine *e, Source *s) { s->g.air.level = 0.35f + 0.25f * e->wind; }
+/* A wave breaking: at the swell's crest, a crash of noise rising with it and dying away (its size, length and
+ * brightness new each time; now and then a wave that doesn't break), and a sparse fizz of bubbles in it.
+ * user[0] size, [1] time since, [2] length, [3] brightness (Hz); the shingle drag follows its size */
+static float g_wave_size = 0.6f;
 static void breakers_block(Engine *e, Source *s) {
-    if (!e->swell_peak) return;
-    float pan = rng_range(&s->rng, -0.7f, 0.7f), dist = rng_range(&s->rng, 0.25f, 0.5f);
-    water_burst(&s->g.water, 60 + rng_int(&s->rng, 40), rng_range(&s->rng, 1.2f, 2.0f), pan, dist, 2, 14);
-    engine_post(e, L_LANDSCAPE, GL_SPRAY, pan, dist, 0, 0, 0);
-    s->events++;
+    Water *w = &s->g.water;
+    if (e->swell_peak && rng_f(&s->rng) < 0.88f) {
+        float size = 0.3f + 0.7f * rng_f(&s->rng);
+        size *= 0.7f + 0.6f * e->wind;             /* (rougher with the wind) */
+        s->user[0] = size; s->user[1] = 0; s->user[2] = rng_range(&s->rng, 1.6f, 3.8f); s->user[3] = rng_range(&s->rng, 500, 1700);
+        g_wave_size = size;
+        float pan = rng_range(&s->rng, -0.6f, 0.6f), dist = rng_range(&s->rng, 0.3f, 0.6f);
+        water_burst(w, 8 + (int)(22 * size), s->user[2] * 0.5f, pan, dist, 3, 16);
+        engine_post(e, L_LANDSCAPE, GL_SPRAY, pan, dist, 0, 0, 0);
+        s->events++;
+    }
+    s->user[1] += BLK;
+    float u = s->user[2] > 0 ? s->user[1] / s->user[2] : 2.0f, env;
+    if (u < 0.1f) env = u / 0.1f; else if (u < 1.6f) env = fm_expf(-(u - 0.1f) * 3.0f); else env = 0;
+    w->rush = env * s->user[0] * 4.0f;   /* (about 10 dB under the swell: it fills the break, it does not lead) */
+    w->rush_cut = 250.0f + s->user[3] * (0.45f + 0.55f * env);   /* bright as it crashes, darker as it runs out */
 }
 static void shingle_block(Engine *e, Source *s) {
-    if (e->swell_peak) { s->user[0] = 1.0f; s->user[1] = 0.6f; }     /* the wave runs back after it breaks */
+    if (e->swell_peak) { s->user[0] = g_wave_size; s->user[1] = rng_range(&s->rng, 0.5f, 1.0f); }   /* the wave runs back */
     if (s->user[1] > 0) s->user[1] -= BLK; else s->user[0] *= 0.9993f;
-    s->g.rain.density = (s->user[1] > 0 ? 0 : s->user[0]) * 1500.0f * (0.4f + 0.6f * e->wind);
+    s->g.rain.density = (s->user[1] > 0 ? 0 : s->user[0]) * 1300.0f * (0.4f + 0.6f * e->wind);
 }
 static void l_ocean(Engine *e) {
     Source *s = engine_add(e, "surf swell", L_LANDSCAPE, G_AIR, B_SWELL);
     s->g.air.colour = 1.6f; s->g.air.cutoff = 900; s->g.air.gust_depth = 0.9f; s->g.air.swell_amt = 1.0f;
     s->g.air.width = 0.95f; s->g.air.send = 0.35f; s->sw_lo = 6; s->sw_hi = 12; s->block = surf_block;
     s = engine_add(e, "breakers", L_LANDSCAPE, G_WATER, B_BED);
-    s->g.water.level = 0.45f; s->block = breakers_block;
+    s->g.water.level = 0.32f; s->g.water.rush_cut = 900; s->block = breakers_block;
     s = engine_add(e, "shingle drag", L_LANDSCAPE, G_RAIN, B_BED);
-    { Rain *r = &s->g.rain; r->level = 0.4f; r->hiss = 0.3f; r->click = 0.5f; r->send = 0.25f; r->width = 1.0f; r->size = 0.4f;
-      static const float f[4] = { 2500, 4200, 1600, 6000 }, q[4] = { 6, 5, 4, 6 }, w[4] = { 2, 2, 1, 1 }, g[4] = { 0.6f, 0.6f, 0.5f, 0.4f }; set_surfaces(r, f, q, w, g); }
+    { Rain *r = &s->g.rain; r->level = 0.22f; r->hiss = 0.1f; r->click = 0.15f; r->send = 0.3f; r->width = 1.0f; r->size = 0.4f;
+      r->tone = 5000.0f; r->var = 0.5f; r->drops = 0.7f;                           /* rounder, quieter, under the wave */
+      static const float f[4] = { 2500, 4200, 1600, 6000 }, q[4] = { 3, 3, 2.5f, 3 }, w[4] = { 2, 2, 1, 1 }, g[4] = { 0.6f, 0.6f, 0.5f, 0.4f }; set_surfaces(r, f, q, w, g); }
     s->block = shingle_block;
     s = engine_add(e, "far waves", L_LANDSCAPE, G_AIR, B_BED);
     s->g.air.colour = 2.0f; s->g.air.cutoff = 250; s->g.air.gust_depth = 0.3f; s->g.air.gust_speed = 0.3f; s->g.air.level = 0.25f; s->g.air.width = 0.9f; s->g.air.send = 0.3f;
@@ -578,19 +605,20 @@ static void add_trains(Engine *e, float rate, float dlo, float dhi, float len_lo
 }
 
 static void car_fire(Engine *e, Source *s, float pan, float dist, float x) {
-    (void)e; (void)pan; (void)dist; (void)x; s->pb_voice = hum_start(&s->g.hum, rng_range(&s->rng, 45, 75), 2.0f, 1.2f, 0.6f, 0.9f, 1400, 0, 0, 0, 0.6f);
+    (void)e; (void)pan; (void)dist; (void)x; s->pb_voice = hum_start(&s->g.hum, rng_range(&s->rng, 45, 75), 2.0f, 1.2f, 0.6f, 1.0f, 2000, 0, 0, 0, 0.6f);   /* engine, and tyres on the road */
 }
 static void people_fire(Engine *e, Source *s, float pan, float dist, float x) {
     (void)e; (void)x;
-    float f = rng_f(&s->rng) < 0.5f ? rng_range(&s->rng, 100, 140) : rng_range(&s->rng, 180, 250);
-    crowd_say(&s->g.crowd, f, rng_range(&s->rng, 0.25f, 0.7f), rng_range(&s->rng, 300, 800), rng_range(&s->rng, 900, 2200), rng_range(&s->rng, 300, 800), rng_range(&s->rng, 900, 2200), pan, dist, 0.8f);
+    float f = rng_f(&s->rng) < 0.5f ? rng_range(&s->rng, 95, 135) : rng_range(&s->rng, 175, 240);   /* men's and women's voices */
+    crowd_talk(&s->g.crowd, &s->rng, f, rng_range(&s->rng, 1.2f, 3.5f), 1.0f, pan, dist, 0.8f);
 }
 static void h_city(Engine *e) {
     static const float tod_t[4] = { 0.6f, 1.0f, 0.9f, 0.25f }, tod_c[4] = { 0.6f, 1.0f, 0.9f, 0.2f }, tod_p[4] = { 0.4f, 1.0f, 1.0f, 0.1f };
-    Source *s = add_far_noise(e, "traffic roar", 1.8f, 500, 0.08f, 0.35f); memcpy(s->tod, tod_t, sizeof s->tod);
-    s = add_passby(e, "cars", car_fire, 0.25f, 4, 7, 0.25f, 0.6f, 0.12f, 0.3f, GL_CAR); memcpy(s->tod, tod_c, sizeof s->tod);
+    Source *s = add_far_noise(e, "traffic roar", 1.8f, 500, 0.11f, 0.45f); memcpy(s->tod, tod_t, sizeof s->tod);
+    s = add_passby(e, "cars", car_fire, 0.3f, 4, 7, 0.2f, 0.55f, 0.12f, 0.6f, GL_CAR); memcpy(s->tod, tod_c, sizeof s->tod);
+    s = add_passby(e, "cars, far lane", car_fire, 0.25f, 5, 9, 0.45f, 0.75f, 0.1f, 0.45f, GL_CAR); memcpy(s->tod, tod_c, sizeof s->tod);   /* two lanes: cars overlap */
     s = engine_add(e, "people", L_HUMANS, G_CROWD, B_SCATTER);
-    s->rate = 1.2f; s->g.crowd.level = 0.35f; s->dist_lo = 0.55f; s->dist_hi = 0.85f; s->fire = people_fire; s->glyph = GL_DOT; memcpy(s->tod, tod_p, sizeof s->tod);
+    s->rate = 0.6f; s->g.crowd.level = 0.3f; s->dist_lo = 0.6f; s->dist_hi = 0.9f; s->fire = people_fire; s->glyph = GL_DOT; memcpy(s->tod, tod_p, sizeof s->tod);
     s = engine_add(e, "siren", L_HUMANS, G_VOICE, B_PHRASE);
     s->species[0] = &SP_SIREN; s->nspecies = 1; s->g.voice.level = 0.25f; s->dist_lo = 0.75f; s->dist_hi = 0.9f; phrase_setup(s, &s->rng, 1); s->ag[0].next = 50.0f;
     add_jets(e, 0.025f, 0.35f, 0.6f);
@@ -601,7 +629,7 @@ static void boat_fire(Engine *e, Source *s, float pan, float dist, float x) {
     (void)e; (void)pan; (void)dist; (void)x; s->pb_voice = hum_start(&s->g.hum, rng_range(&s->rng, 85, 100), 1.0f, 1.5f, 0.5f, 0.3f, 900, 6.0f, 0.05f, 0, 2.0f);
 }
 static void voices_fire(Engine *e, Source *s, float pan, float dist, float x) {
-    (void)e; (void)x; crowd_say(&s->g.crowd, rng_range(&s->rng, 110, 220), rng_range(&s->rng, 0.3f, 0.8f), 400, 1200, 600, 1800, pan, dist, 0.6f);
+    (void)e; (void)x; crowd_talk(&s->g.crowd, &s->rng, rng_range(&s->rng, 110, 220), rng_range(&s->rng, 0.8f, 2.5f), 1.0f, pan, dist, 0.6f);
 }
 static void h_jungle(Engine *e) {
     static const float tod_v[4] = { 0.6f, 1.0f, 0.8f, 0.1f };
@@ -624,7 +652,7 @@ static void telemetry_fire(Engine *e, Source *s, float pan, float dist, float x)
     (void)e; (void)x; voice_play(&s->g.voice, &TELEMETRY, P[rng_int(&s->rng, 3)], 1.0f, pan, dist, 1.0f);
 }
 static void comms_fire(Engine *e, Source *s, float pan, float dist, float x) {
-    (void)e; (void)x; crowd_say(&s->g.crowd, rng_range(&s->rng, 160, 220), rng_range(&s->rng, 0.3f, 0.6f), 800, 2400, 600, 2000, pan, dist, 0.6f);
+    (void)e; (void)x; crowd_talk(&s->g.crowd, &s->rng, rng_range(&s->rng, 130, 200), rng_range(&s->rng, 0.8f, 2.0f), 1.25f, pan, dist, 0.6f);   /* radio chatter */
 }
 static void h_space(Engine *e) {
     Source *s = engine_add(e, "hull drone", L_HUMANS, G_HUM, B_BED); s->g.hum.level = 0.5f; s->block = hull_drone_block;
@@ -709,12 +737,47 @@ static void factory_hum_block(Engine *e, Source *s) {
     if (!h->v[0].on) { hum_start(h, 50, 2.0f, 0.6f, 0.2f, 0.0f, 400, 0, 0, 0, 3.0f); spatial_set(&h->v[0].sp, -0.2f, 0.5f); }
     if (!h->v[1].on) { hum_start(h, 113, 1.0f, 0.2f, 0.8f, 0.4f, 900, 0.3f, 0.08f, 0, 3.0f); spatial_set(&h->v[1].sp, 0.4f, 0.4f); }
     float act = src_tod(e, s) * (0.2f + 1.6f * e->eff.activity);
-    h->v[0].target = 0.15f + 0.1f * act; h->v[1].target = 0.1f * act;
+    h->v[0].target = 0.22f + 0.14f * act; h->v[1].target = 0.15f * act;
 }
-static void press_fire(Engine *e, Source *s, float pan, float dist, float x) {
+/* A press, run as a machine is: spells of stamping (its own pace, a little uneven), then idle; each stamp a metal
+ * clank, a lower thud kept short, and now and then the clatter of the part dropping. user[0] stamps left in the
+ * spell, [1] to the next, [2] its pace, [3] its pitch, [4] where (pan), [5] how far */
+static void press_stamp(Engine *e, Source *s) {
+    float f = s->user[3] * rng_range(&s->rng, 0.96f, 1.04f), pan = s->user[4], dist = s->user[5];
+    engine_var_begin(e, s);
+    ring_strike(&s->g.ring, &s->rng, &MAT_PRESS, f, rng_range(&s->rng, 0.6f, 0.9f), 0.75f, 0.7f, pan, dist);
+    ring_strike(&s->g.ring, &s->rng, &MAT_GIRDER, f * rng_range(&s->rng, 1.9f, 2.3f), rng_range(&s->rng, 0.15f, 0.35f), 0.6f, 0.8f, pan, dist);
+    ring_strike(&s->g.ring, &s->rng, &MAT_STONE, f * 0.5f, 0.3f, 0.2f, 0.6f, pan, dist);     /* the thud: short, low in the mix */
+    if (rng_f(&s->rng) < 0.25f) ring_strike(&s->g.ring, &s->rng, &MAT_CHAIN, rng_range(&s->rng, 1800, 3200), 0.2f, 0.7f, 1.0f, pan + 0.05f, dist);
+    engine_var_end();
+    engine_post(e, L_HUMANS, GL_PRESS, pan, dist, 0, 0, 0);
+    s->events++; e->layer_events[L_HUMANS]++;
+}
+static void press_block(Engine *e, Source *s) {
+    float life = src_tod(e, s) * (0.3f + 1.4f * e->eff.activity) * e->dens[L_HUMANS] * e->gov;
+    if (s->user[0] <= 0) {                           /* idle: a new spell, sooner when it's busy */
+        if (rng_f(&s->rng) < life * 0.12f * BLK) {
+            s->user[0] = 4 + rng_int(&s->rng, 14); s->user[1] = 0.2f; s->user[2] = rng_range(&s->rng, 0.8f, 1.7f);
+            s->user[3] = rng_range(&s->rng, 120, 190); s->user[4] = rng_range(&s->rng, -0.2f, 0.6f); s->user[5] = rng_range(&s->rng, 0.45f, 0.75f);
+        }
+        return;
+    }
+    s->user[1] -= BLK;
+    if (s->user[1] > 0) return;
+    press_stamp(e, s);
+    s->user[0] -= 1;
+    s->user[1] = s->user[2] * rng_range(&s->rng, 0.9f, 1.12f);   /* (a machine, but an old one) */
+}
+static void clang_fire(Engine *e, Source *s, float pan, float dist, float x) {   /* the yard: metal dropped, struck, dragged */
     (void)e; (void)x;
-    ring_strike(&s->g.ring, &s->rng, &MAT_PRESS, rng_range(&s->rng, 85, 95), 0.9f, 0.6f, 1.0f, pan, dist);
-    ring_strike(&s->g.ring, &s->rng, &MAT_STONE, 48, 0.8f, 0.3f, 3.0f, pan, dist);
+    const Material *m = rng_f(&s->rng) < 0.6f ? &MAT_GIRDER : &MAT_CHAIN;
+    float f = m == &MAT_GIRDER ? rng_range(&s->rng, 110, 320) : rng_range(&s->rng, 1500, 3500);
+    ring_strike(&s->g.ring, &s->rng, m, f, rng_range(&s->rng, 0.3f, 0.8f), 0.6f, 1.2f, pan, dist);
+    if (rng_f(&s->rng) < 0.4f) roll_start(s, 2 + rng_int(&s->rng, 4), 0.09f, f * 1.3f, pan, dist, 0.5f);
+}
+static void clang_block(Engine *e, Source *s) { (void)e; roll_step(s, &MAT_GIRDER, 0.6f, 0.9f, 0.8f); }
+static void forklift_fire(Engine *e, Source *s, float pan, float dist, float x) {
+    (void)e; (void)pan; (void)dist; (void)x; s->pb_voice = hum_start(&s->g.hum, rng_range(&s->rng, 130, 175), 1.0f, 0.35f, 0.9f, 0.6f, 1300, 0.4f, 0.1f, 0, 1.0f);
 }
 static void freight_fire(Engine *e, Source *s, float pan, float dist, float x) {
     (void)e; (void)pan; (void)dist; (void)x;
@@ -724,13 +787,16 @@ static void freight_fire(Engine *e, Source *s, float pan, float dist, float x) {
 static void h_industrial(Engine *e) {
     static const float tod_m[4] = { 0.8f, 1.0f, 0.8f, 0.6f }, tod_p[4] = { 0.6f, 1.0f, 0.8f, 0.5f }, tod_b[4] = { 0.8f, 1.0f, 0.8f, 0.3f };
     Source *s = engine_add(e, "mains hum and fan", L_HUMANS, G_HUM, B_BED); s->g.hum.level = 0.5f; memcpy(s->tod, tod_m, sizeof s->tod); s->block = factory_hum_block;
-    s = engine_add(e, "stamping press", L_HUMANS, G_RING, B_SCATTER);
-    s->rate = 0.5f; s->regular = 1; s->g.ring.level = 0.55f; s->pan_lo = 0.3f; s->pan_hi = 0.4f; s->dist_lo = 0.5f; s->dist_hi = 0.55f;
-    memcpy(s->tod, tod_p, sizeof s->tod); s->fire = press_fire; s->glyph = GL_PRESS;
+    s = engine_add(e, "stamping press", L_HUMANS, G_RING, B_BED);
+    s->g.ring.level = 0.75f; memcpy(s->tod, tod_p, sizeof s->tod); s->block = press_block; s->glyph = GL_PRESS;
+    s = engine_add(e, "metal in the yard", L_HUMANS, G_RING, B_SCATTER);
+    s->rate = 0.22f; s->alive = 1; s->g.ring.level = 0.55f; s->dist_lo = 0.35f; s->dist_hi = 0.85f; memcpy(s->tod, tod_p, sizeof s->tod);
+    s->fire = clang_fire; s->block = clang_block; s->glyph = GL_BAR;
+    s = add_passby(e, "forklift", forklift_fire, 0.05f, 6, 11, 0.3f, 0.6f, 0.06f, 0.4f, GL_CAR); memcpy(s->tod, tod_b, sizeof s->tod);
     s = engine_add(e, "reversing beeper", L_HUMANS, G_VOICE, B_PHRASE);
-    s->species[0] = &SP_BEEPER; s->nspecies = 1; s->g.voice.level = 0.3f; s->dist_lo = 0.6f; s->dist_hi = 0.85f; memcpy(s->tod, tod_b, sizeof s->tod);
+    s->species[0] = &SP_BEEPER; s->nspecies = 1; s->g.voice.level = 0.4f; s->dist_lo = 0.6f; s->dist_hi = 0.85f; memcpy(s->tod, tod_b, sizeof s->tod);
     s->glyph = GL_SQUARE; phrase_setup(s, &s->rng, 1);
-    s = add_passby(e, "freight train", freight_fire, 0.012f, 25, 35, 0.6f, 0.85f, 0.05f, 0.4f, GL_TRAIN);
+    s = add_passby(e, "freight train", freight_fire, 0.012f, 25, 35, 0.6f, 0.85f, 0.05f, 0.55f, GL_TRAIN);
     s = engine_add(e, "freight wheels", L_HUMANS, G_RING, B_BED); s->g.ring.level = 0.3f; s->block = wheels_block;
     add_jets(e, 0.02f, 0.4f, 0.7f);
 }
