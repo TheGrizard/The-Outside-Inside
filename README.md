@@ -51,7 +51,7 @@ The repository holds the app in `app/` and [fm1-base](https://github.com/charles
 git submodule. JieLi's compiler for the FM-1's chip runs on Linux (on Windows, in WSL; on a Mac, fm1-base runs it in a
 container).
 
-    git clone --recursive https://github.com/TheGrizard/the-outside-inside
+    git clone --recursive https://github.com/TheGrizard/The-Outside-Inside
     cd the-outside-inside
     base/tools/setup_toolchain.sh        # JieLi's compiler and the AC79 SDK's three files, checked against a lock
     ./build.sh                           # app/build/the-outside-inside.fwsc

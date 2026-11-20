@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 # The Outside Inside's words for a screen reader (fm1-reader): the text on the screen <TAB> what to say.
 # The screen reader fetches these from the url below; until the firmware has a site, the reader uses its own words.
-# url: https://TheGrizard.github.io/the-outside-inside/words/
+# url: https://TheGrizard.github.io/The-Outside-Inside/words/
 THE OUTSIDE INSIDE	the outside inside
 USER	user environment
 RANDOMISED	randomised
