@@ -10,6 +10,10 @@ mkdir -p "$out"
 fail=0
 for t in app/tests/*.txt; do
     echo "== $t"
-    if app/build/host/the-outside-inside_host "$t" "$out" | tee /dev/stderr | grep -q FAIL; then fail=1; fi
+    log="$out/$(basename "$t" .txt).log"
+    rc=0; app/build/host/the-outside-inside_host "$t" "$out" > "$log" 2>&1 || rc=$?
+    if [ "$rc" -gt 1 ]; then echo "FAIL: $t crashed (exit $rc)"; fail=1; fi   # (1: expectations failed, below)
+    cat "$log"
+    if grep -q FAIL "$log"; then fail=1; fi
 done
 exit $fail
