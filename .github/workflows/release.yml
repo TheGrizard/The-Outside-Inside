@@ -16,7 +16,7 @@ name: Build and attest firmware
 
 on:
   push:
-    tags: ['v[0-9]*']
+    tags: ['v[0-9]*', 'V[0-9]*']           # (a phone's keyboard capitalises: either works)
   workflow_dispatch:
 
 permissions:
@@ -40,7 +40,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "$GITHUB_REF" != refs/tags/* ]]; then exit 0; fi
-          version=${GITHUB_REF_NAME#v}
+          version=${GITHUB_REF_NAME#[vV]}
           # (the versions base/tools/build.py --release takes)
           [[ "$version" =~ ^[0-9]{1,2}\.[0-9]{1,2}(\.[0-9]{1,2})?(-[A-Za-z0-9]+)?$ ]]
           flags=(--prerelease=false)
@@ -85,7 +85,7 @@ jobs:
         emcc --version
         mkdir -p build/release-assets
         if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-          version=${GITHUB_REF_NAME#v}
+          version=${GITHUB_REF_NAME#[vV]}
           ./build.sh --release "$version"
           cp "app/build/$pkg-$version.fwsc" build/release-assets/
           cp "app/build/$pkg.bin" "build/release-assets/$pkg-$version-app.bin"
