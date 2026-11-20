@@ -114,7 +114,8 @@ void voice_render(Voice *v, Bus *b);
 
 /* ================= RING: modal resonators ================= */
 #define RING_MODES 8
-typedef struct { int n; float ratio[RING_MODES], tau[RING_MODES], amp[RING_MODES]; float click, click_cut; } Material;
+/* click: a burst of noise at the strike (its level, its band, and how long it lasts: click_ms, 0 = 3 ms) */
+typedef struct { int n; float ratio[RING_MODES], tau[RING_MODES], amp[RING_MODES]; float click, click_cut, click_ms; } Material;
 #define RING_VOICES 10
 /* each mode a decaying phasor (re, im), turned by (cr, ci) = decay x (cos, sin) every sample: no table, no phase to wrap */
 typedef struct { int on; int n; float re[RING_MODES], im[RING_MODES], cr[RING_MODES], ci[RING_MODES]; float clk, clk_dec; Svf clkf; Spatial sp; } RVoice;

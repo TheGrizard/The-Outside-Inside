@@ -306,7 +306,7 @@ void ring_strike(Ring *g, Rng *r, const Material *m, float freq, float amp, floa
         v->cr[v->n] = dec * fm_cosf(w); v->ci[v->n] = dec * fm_sinf(w);
         v->n++;
     }
-    v->clk = amp * m->click; v->clk_dec = fm_expf(-1.0f / (0.003f * OUT_SR));
+    v->clk = amp * m->click; v->clk_dec = fm_expf(-1.0f / ((m->click_ms > 0 ? m->click_ms : 3.0f) * 0.001f * OUT_SR));
     svf_set(&v->clkf, m->click_cut > 0 ? m->click_cut : 3000.0f, 1.2f);
     spatial_set(&v->sp, pan, dist);
     g->energy += 1;

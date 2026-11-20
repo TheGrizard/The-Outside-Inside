@@ -12,9 +12,13 @@ static const Material MAT_STONE = { 3, { 1, 1.73f, 2.9f }, { 0.05f, 0.03f, 0.02f
 static const Material MAT_GLASS = { 6, { 1, 2.32f, 4.25f, 6.63f, 9.38f, 13.1f }, { 3.0f, 1.8f, 1.1f, 0.7f, 0.4f, 0.25f }, { 1, 0.6f, 0.45f, 0.3f, 0.2f, 0.12f }, 0.05f, 6000 };
 static const Material MAT_POD = { 3, { 1, 1.5f, 2.76f }, { 0.5f, 0.3f, 0.15f }, { 1, 0.4f, 0.2f }, 0.2f, 800 };
 static const Material MAT_GIRDER = { 4, { 1, 2.756f, 5.404f, 8.933f }, { 1.8f, 1.2f, 0.8f, 0.5f }, { 1, 0.7f, 0.5f, 0.3f }, 0.4f, 2000 };
-static const Material MAT_PRESS = { 4, { 1, 1.47f, 2.09f, 2.56f }, { 0.4f, 0.3f, 0.2f, 0.15f }, { 1, 0.6f, 0.4f, 0.3f }, 1.5f, 600 };
 static const Material MAT_CHAIN = { 3, { 1, 1.6f, 2.3f }, { 0.05f, 0.04f, 0.03f }, { 1, 0.7f, 0.5f }, 0.6f, 5000 };
 static const Material MAT_RAIL = { 3, { 1, 2.3f, 3.9f }, { 0.06f, 0.04f, 0.03f }, { 1, 0.6f, 0.4f }, 1.2f, 1800 };
+/* the factory's metals: dead, heavy, noisy. A press's slam (a bang of noise, a ring gone in a tenth of a second),
+ * scrap and sheet (clangy, short), a beam (a creak's ping, not a gong's) */
+static const Material MAT_SLAM = { 5, { 1, 1.38f, 1.93f, 2.71f, 3.62f }, { 0.07f, 0.05f, 0.04f, 0.03f, 0.025f }, { 1, 0.8f, 0.6f, 0.45f, 0.3f }, 3.0f, 1400, 35 };
+static const Material MAT_SCRAP = { 6, { 1, 1.41f, 2.13f, 2.87f, 3.91f, 5.3f }, { 0.16f, 0.12f, 0.1f, 0.08f, 0.06f, 0.045f }, { 1, 0.9f, 0.8f, 0.6f, 0.5f, 0.35f }, 2.0f, 3500, 15 };
+static const Material MAT_BEAM = { 4, { 1, 2.756f, 5.404f, 8.933f }, { 0.35f, 0.25f, 0.18f, 0.12f }, { 1, 0.7f, 0.5f, 0.3f }, 1.0f, 2500, 8 };
 static const Material MAT_BELL = { 6, { 1, 2.0f, 2.38f, 3.0f, 4.0f, 5.04f }, { 3.0f, 2.2f, 1.8f, 1.4f, 1.0f, 0.7f }, { 1, 0.6f, 0.5f, 0.4f, 0.3f, 0.2f }, 0.3f, 3000 };
 
 static void set_surfaces(Rain *r, const float f[4], const float q[4], const float w[4], const float g[4]) {
@@ -538,7 +542,7 @@ static void l_alien(Engine *e) {
 
 static void steam_fire(Engine *e, Source *s, float pan, float dist, float x) { (void)e; (void)pan; (void)dist; (void)x; air_burst(&s->g.air, rng_range(&s->rng, 0.8f, 3.0f)); }
 static void girder_fire(Engine *e, Source *s, float pan, float dist, float x) {
-    (void)e; (void)x; ring_strike(&s->g.ring, &s->rng, &MAT_GIRDER, rng_range(&s->rng, 60, 140), rng_range(&s->rng, 0.3f, 0.7f), 0.5f, 1.0f, pan, dist);
+    (void)e; (void)x; ring_strike(&s->g.ring, &s->rng, &MAT_BEAM, rng_range(&s->rng, 60, 140), rng_range(&s->rng, 0.3f, 0.7f), 0.5f, 1.0f, pan, dist);
 }
 static void girder_block(Engine *e, Source *s) { s->rate = 0.15f * (0.4f + 1.5f * e->wind); }
 static void chain_fire(Engine *e, Source *s, float pan, float dist, float x) { (void)e; (void)x; roll_start(s, 3 + rng_int(&s->rng, 4), 0.09f, rng_range(&s->rng, 1800, 2600), pan, dist, 0.6f); }
@@ -784,10 +788,8 @@ static void factory_hum_block(Engine *e, Source *s) {
 static void press_stamp(Engine *e, Source *s) {
     float f = s->user[3] * rng_range(&s->rng, 0.96f, 1.04f), pan = s->user[4], dist = s->user[5];
     engine_var_begin(e, s);
-    ring_strike(&s->g.ring, &s->rng, &MAT_PRESS, f, rng_range(&s->rng, 0.6f, 0.9f), 0.75f, 0.7f, pan, dist);
-    ring_strike(&s->g.ring, &s->rng, &MAT_GIRDER, f * rng_range(&s->rng, 1.9f, 2.3f), rng_range(&s->rng, 0.15f, 0.35f), 0.6f, 0.8f, pan, dist);
-    ring_strike(&s->g.ring, &s->rng, &MAT_STONE, f * 0.5f, 0.3f, 0.2f, 0.6f, pan, dist);     /* the thud: short, low in the mix */
-    if (rng_f(&s->rng) < 0.25f) ring_strike(&s->g.ring, &s->rng, &MAT_CHAIN, rng_range(&s->rng, 1800, 3200), 0.2f, 0.7f, 1.0f, pan + 0.05f, dist);
+    ring_strike(&s->g.ring, &s->rng, &MAT_SLAM, f * 0.6f, rng_range(&s->rng, 0.8f, 1.0f), 0.7f, 1.0f, pan, dist);   /* the slam */
+    ring_strike(&s->g.ring, &s->rng, &MAT_SCRAP, f * rng_range(&s->rng, 2.4f, 3.1f), rng_range(&s->rng, 0.25f, 0.4f), 0.7f, 0.8f, pan, dist);   /* the die's clank */
     engine_var_end();
     engine_post(e, L_HUMANS, GL_PRESS, pan, dist, 0, 0, 0);
     s->events++; e->layer_events[L_HUMANS]++;
@@ -809,12 +811,15 @@ static void press_block(Engine *e, Source *s) {
 }
 static void clang_fire(Engine *e, Source *s, float pan, float dist, float x) {   /* the yard: metal dropped, struck, dragged */
     (void)e; (void)x;
-    const Material *m = rng_f(&s->rng) < 0.6f ? &MAT_GIRDER : &MAT_CHAIN;
-    float f = m == &MAT_GIRDER ? rng_range(&s->rng, 110, 320) : rng_range(&s->rng, 1500, 3500);
-    ring_strike(&s->g.ring, &s->rng, m, f, rng_range(&s->rng, 0.3f, 0.8f), 0.6f, 1.2f, pan, dist);
+    const Material *m = rng_f(&s->rng) < 0.6f ? &MAT_SCRAP : &MAT_CHAIN;
+    float f = m == &MAT_SCRAP ? rng_range(&s->rng, 200, 600) : rng_range(&s->rng, 1500, 3500);
+    ring_strike(&s->g.ring, &s->rng, m, f, rng_range(&s->rng, 0.3f, 0.8f), 0.6f, 1.0f, pan, dist);
     if (rng_f(&s->rng) < 0.4f) roll_start(s, 2 + rng_int(&s->rng, 4), 0.09f, f * 1.3f, pan, dist, 0.5f);
 }
-static void clang_block(Engine *e, Source *s) { (void)e; roll_step(s, &MAT_GIRDER, 0.6f, 0.9f, 0.8f); }
+static void clang_block(Engine *e, Source *s) { (void)e; roll_step(s, &MAT_SCRAP, 0.6f, 0.8f, 0.8f); }
+static void air_hiss_fire(Engine *e, Source *s, float pan, float dist, float x) {   /* compressed air let go: a hiss */
+    (void)e; (void)pan; (void)dist; (void)x; air_burst(&s->g.air, rng_range(&s->rng, 0.2f, 1.1f));
+}
 static void forklift_fire(Engine *e, Source *s, float pan, float dist, float x) {
     (void)e; (void)pan; (void)dist; (void)x; s->pb_voice = hum_start(&s->g.hum, rng_range(&s->rng, 130, 175), 1.0f, 0.35f, 0.9f, 0.6f, 1300, 0.4f, 0.1f, 0, 1.0f);
 }
@@ -831,6 +836,10 @@ static void h_industrial(Engine *e) {
     s = engine_add(e, "metal in the yard", L_HUMANS, G_RING, B_SCATTER);
     s->rate = 0.22f; s->alive = 1; s->g.ring.level = 0.55f; s->dist_lo = 0.35f; s->dist_hi = 0.85f; memcpy(s->tod, tod_p, sizeof s->tod);
     s->fire = clang_fire; s->block = clang_block; s->glyph = GL_BAR;
+    s = engine_add(e, "air release", L_HUMANS, G_AIR, B_SCATTER);
+    s->g.air.burst_mode = 1; s->g.air.colour = 0.1f; s->g.air.cutoff = 9000; s->g.air.hp = 3000; s->g.air.gust_depth = 0.2f;
+    s->g.air.level = 0.22f; s->g.air.width = 0.25f; s->g.air.send = 0.35f; s->rate = 0.12f; s->alive = 1; memcpy(s->tod, tod_p, sizeof s->tod);
+    s->fire = air_hiss_fire; s->glyph = GL_STEAM;
     s = add_passby(e, "forklift", forklift_fire, 0.05f, 6, 11, 0.3f, 0.6f, 0.06f, 0.4f, GL_CAR); memcpy(s->tod, tod_b, sizeof s->tod);
     s = engine_add(e, "reversing beeper", L_HUMANS, G_VOICE, B_PHRASE);
     s->species[0] = &SP_BEEPER; s->nspecies = 1; s->g.voice.level = 0.4f; s->dist_lo = 0.6f; s->dist_hi = 0.85f; memcpy(s->tod, tod_b, sizeof s->tod);
