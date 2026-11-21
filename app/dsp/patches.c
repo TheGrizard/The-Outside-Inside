@@ -720,12 +720,12 @@ static void engines_block(Engine *e, Source *s) {
     float act = src_tod(e, s) * (0.3f + 1.4f * e->eff.activity) * e->dens[L_HUMANS] * e->gov;
     static const float F[2] = { 32.0f, 43.0f }, PAN[2] = { -0.5f, 0.45f };
     for (int k = 0; k < 2; k++)
-        if (!h->v[k].on) { hum_start(h, F[k], 0.5f, 0.9f, 0.3f, 0.3f, 220, 5.5f + k, 0.06f, 0, 3.0f); spatial_set(&h->v[k].sp, PAN[k], 0.85f); }   /* (deep: a gentle rumble in its overtones, nothing higher) */
+        if (!h->v[k].on) { hum_start(h, F[k], 0.5f, 0.5f, 0.3f, 0.75f, 260, 5.5f + k, 0.06f, 0, 3.0f); spatial_set(&h->v[k].sp, PAN[k], 0.85f); }   /* (deep: a rumble, mostly noise: traffic doesn't sit on a note) */
     s->user[4] += (rng_bi(&s->rng) * 0.6f - s->user[4]) * BLK * 0.25f;   /* (traffic: a little busier, a little quieter) */
     s->user[5] += (rng_bi(&s->rng) * 0.6f - s->user[5]) * BLK * 0.15f;
     for (int k = 0; k < 2; k++) {
         h->v[k].pmul = 1.0f + 0.07f * (k ? s->user[5] : s->user[4]);
-        h->v[k].target = (0.07f + 0.08f * act) * (1.0f + 0.35f * (k ? s->user[4] : s->user[5]));
+        h->v[k].target = (0.035f + 0.045f * act) * (1.0f + 0.35f * (k ? s->user[4] : s->user[5]));
     }
     if (s->user[3] <= 0) {                           /* a car pulling away, about one in 7 s when it's busy */
         if (rng_f(&s->rng) < act * 0.14f * BLK) {
@@ -761,11 +761,50 @@ static void engines_block(Engine *e, Source *s) {
     spatial_set(&h->v[v].sp, a->pan + a->tempo * 0.5f * u, a->dist + 0.15f * u);
     if (u >= 1.0f) { hum_release(h, v, 1.0f); s->user[3] = 0; }
 }
+/* Cars going by on the street (matched to traffic recordings): mostly tyres on the road, an engine low under it;
+ * one every few seconds when it's busy, two or three at once at times. Each swells and brightens as it passes and
+ * crosses the field; it never sits on a note. Agent k is car k (hum voice k): pan its time, next its length, dist
+ * its closest, tempo its way, pitch its loudness, ph its tyres' brightness */
+static void cars_block(Engine *e, Source *s) {
+    Hum *h = &s->g.hum;
+    float act = src_tod(e, s) * (0.2f + 1.6f * e->eff.activity) * e->dens[L_HUMANS] * e->gov;
+    if (rng_f(&s->rng) < act * 0.22f * BLK) {             /* a car every 4-5 s when it's busy */
+        engine_var_begin(e, s);
+        int n = hum_start(h, rng_range(&s->rng, 45, 75), 0.5f, 0.4f, 0.3f, 0.9f, 3000, 0, 0, 0, 0.3f);
+        engine_var_end();
+        if (n >= 3) hum_release(h, n, 0.05f);                /* (three at once at most) */
+        else if (n >= 0) {
+            Agent *a = &s->ag[n];
+            a->singing = 1; a->pan = 0; a->next = rng_range(&s->rng, 3.5f, 7.0f); a->dist = rng_range(&s->rng, 0.4f, 0.7f);
+            a->tempo = rng_f(&s->rng) < 0.5f ? -1.0f : 1.0f; a->pitch = rng_range(&s->rng, 0.6f, 1.0f); a->ph = rng_range(&s->rng, 2600, 4200);
+            h->v[n].target = 1e-3f;
+            engine_post(e, L_HUMANS, GL_CAR, -a->tempo, a->dist, 0, (int)a->tempo, a->next);
+            s->events++; e->layer_events[L_HUMANS]++;
+        }
+    }
+    for (int k = 0; k < 3; k++) {
+        Agent *a = &s->ag[k];
+        HVoice *v = &h->v[k];
+        if (!a->singing) continue;
+        float u = (a->pan += BLK) / a->next;
+        if (u >= 1.0f || !v->on) { hum_release(h, k, 0.4f); a->singing = 0; continue; }
+        float x = a->tempo * (u * 2.0f - 1.0f) * 1.6f, near = 0.25f + a->dist, r = fm_sqrtf(x * x + near * near);
+        float close = near / r;                                    /* 1 going by, less either side */
+        spatial_set(&v->sp, x / r * 0.9f, a->dist + (1.0f - a->dist) * (1.0f - close) * 0.7f);
+        v->pmul = 1.0f / (1.0f + (x / r) * a->tempo * 3.2f / a->next * 0.04f);   /* (a touch of Doppler) */
+        v->noise_cut = a->ph * (0.45f + 0.55f * close);           /* the tyres' hiss brightest as it passes */
+        float edge = u < 0.12f ? u / 0.12f : u > 0.88f ? (1.0f - u) / 0.12f : 1.0f;
+        v->target = 0.7f * a->pitch * close * close * edge;      /* (a swell of several dB as it goes by) */
+    }
+}
+
 static void h_city(Engine *e) {
     static const float tod_t[4] = { 0.6f, 1.0f, 0.9f, 0.25f }, tod_c[4] = { 0.6f, 1.0f, 0.9f, 0.3f };
-    Source *s = add_far_noise(e, "traffic roar", 2.0f, 400, 0.07f, 0.28f); memcpy(s->tod, tod_t, sizeof s->tod);
+    Source *s = add_far_noise(e, "traffic roar", 2.0f, 700, 0.05f, 0.17f); memcpy(s->tod, tod_t, sizeof s->tod);
     s = engine_add(e, "distant engines", L_HUMANS, G_HUM, B_BED);
     s->g.hum.level = 0.6f; s->glyph = GL_CAR; s->block = engines_block; memcpy(s->tod, tod_c, sizeof s->tod);
+    s = engine_add(e, "passing cars", L_HUMANS, G_HUM, B_BED);
+    s->g.hum.level = 0.6f; s->glyph = GL_CAR; s->block = cars_block; memcpy(s->tod, tod_c, sizeof s->tod);
     add_jets(e, 0.025f, 0.35f, 0.6f);
     add_trains(e, 0.018f, 0.5f, 0.72f, 5, 7);      /* fast: across in 5-7 s, quicker than the cars; one a minute or so */
 }
