@@ -404,22 +404,31 @@ static void insect_hum_block(Engine *e, Source *s) {
         h->v[k].target = 0.02f + 0.035f * life * (1.0f + 0.5f * (k ? -s->user[4] : s->user[4]));
     }
 }
-/* sheep across the fields: a ewe's baa, now and then a lamb's; one often answers another */
-static void sheep_fire(Engine *e, Source *s, float pan, float dist, float x) {
-    (void)e; (void)x;
+/* sheep across the fields: quiet for a while, then a bout of bleating, the flock calling to each other (2 to 6
+ * bleats from here and there, a second or two apart), sometimes just one. A ewe's, now and then a lamb's */
+static void sheep_one(Engine *e, Source *s, float pan, float dist) {
     int lamb = rng_f(&s->rng) < 0.25f;
     float f0 = lamb ? rng_range(&s->rng, 330, 460) : rng_range(&s->rng, 225, 260), dur = lamb ? rng_range(&s->rng, 0.3f, 0.6f) : rng_range(&s->rng, 0.6f, 1.3f);
     crowd_bleat(&s->g.crowd, f0, dur, 720, 1950, 660, 1820, lamb ? 15.0f : rng_range(&s->rng, 12.0f, 14.0f), pan, dist, 1.0f);
-    if (rng_f(&s->rng) < 0.4f) { s->user[0] = rng_range(&s->rng, 1.0f, 3.0f); s->user[1] = pan; }   /* an answer, from elsewhere */
+    (void)e;
+}
+static void sheep_fire(Engine *e, Source *s, float pan, float dist, float x) {
+    (void)x;
+    sheep_one(e, s, pan, dist);
+    s->user[1] = pan;                                            /* where the flock is */
+    s->user[2] = rng_f(&s->rng) < 0.25f ? 0 : (float)(1 + rng_int(&s->rng, 5));   /* how many answer */
+    s->user[0] = rng_range(&s->rng, 0.5f, 2.2f);
 }
 static void sheep_block(Engine *e, Source *s) {
-    if (s->user[0] <= 0 || (s->user[0] -= BLK) > 0) return;
-    float pan = s->user[1] + rng_range(&s->rng, 0.3f, 0.7f) * (s->user[1] > 0 ? -1.0f : 1.0f);
+    if (s->user[2] <= 0 || (s->user[0] -= BLK) > 0) return;
+    float pan = s->user[1] + rng_bi(&s->rng) * 0.4f, dist = rng_range(&s->rng, s->dist_lo, s->dist_hi);
+    pan = pan < -1 ? -1 : pan > 1 ? 1 : pan;
     engine_var_begin(e, s);
-    crowd_bleat(&s->g.crowd, rng_range(&s->rng, 225, 260), rng_range(&s->rng, 0.6f, 1.3f), 720, 1950, 660, 1820, rng_range(&s->rng, 12.0f, 14.0f), pan, rng_range(&s->rng, s->dist_lo, s->dist_hi), 0.9f);
+    sheep_one(e, s, pan, dist);
     engine_var_end();
-    engine_post(e, L_ANIMALS, GL_SHEEP, pan, s->dist_hi, 0, 0, 0);
-    s->user[0] = 0;
+    engine_post(e, L_ANIMALS, GL_SHEEP, pan, dist, 0, 0, 0);
+    s->user[2] -= 1;
+    s->user[0] = rng_range(&s->rng, 0.5f, 2.5f);
 }
 static void a_meadow(Engine *e) {
     static const float tod_p[4] = { 1.2f, 1.0f, 0.8f, 0.0f }, tod_bee[4] = { 0.3f, 1.0f, 0.6f, 0.0f }, tod_g[4] = { 0.3f, 1.0f, 0.8f, 0.0f }, tod_sh[4] = { 1.0f, 0.8f, 1.0f, 0.3f };
@@ -431,7 +440,7 @@ static void a_meadow(Engine *e) {
     s = engine_add(e, "insect hum", L_ANIMALS, G_HUM, B_BED); s->g.hum.level = 0.6f; s->block = insect_hum_block; memcpy(s->tod, tod_bee, sizeof s->tod);
     add_chorus(e, L_ANIMALS, "grasshoppers", &GRASSHOPPER, 0.4f, 4.0f, 9.0f, 0.1f, 6, 0.9f, 1.1f, 0.15f, 0.6f, tod_g, GL_DOT);
     s = engine_add(e, "sheep", L_ANIMALS, G_CROWD, B_SCATTER);
-    s->rate = 0.08f; s->g.crowd.level = 0.07f; s->dist_lo = 0.45f; s->dist_hi = 0.65f; s->fire = sheep_fire; s->block = sheep_block; s->glyph = GL_SHEEP;
+    s->rate = 0.022f; s->g.crowd.level = 0.07f; s->dist_lo = 0.45f; s->dist_hi = 0.65f; s->fire = sheep_fire; s->block = sheep_block; s->glyph = GL_SHEEP;
     memcpy(s->tod, tod_sh, sizeof s->tod);
     add_chorus(e, L_ANIMALS, "night crickets", &CRICKET, 0.22f, 0.7f, 1.1f, 0.3f, 8, 0.95f, 1.08f, 0.3f, 0.8f, TOD_NIGHT, GL_DOT);
 }
