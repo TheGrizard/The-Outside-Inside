@@ -149,6 +149,7 @@ typedef struct {
     int on, talk; float t, dur, f0, ph, fa1, fa2, fb1, fb2, amp, jit; Svf f1, f2; Spatial sp;
     float syl_t, syl_dur, gap, fric, stress, fscale, v1, v2, w1, w2, lp, nz; uint32_t seed;
     float trem, tph;    /* a bleat's quaver (Hz; 0 = none) */
+    Svf f3;             /* a bleat's third formant: the nasal edge */
 } CVoice;
 typedef struct { float level; CVoice v[CROWD_VOICES]; float energy; } Crowd;
 

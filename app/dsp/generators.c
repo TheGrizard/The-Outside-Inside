@@ -406,6 +406,7 @@ void crowd_say(Crowd *c, float f0, float dur, float fa1, float fa2, float fb1, f
 void crowd_bleat(Crowd *c, float f0, float dur, float fa1, float fa2, float fb1, float fb2, float trem, float pan, float dist, float amp) {
     CVoice *v = say(c, f0, dur, fa1, fa2, fb1, fb2, pan, dist, amp);
     v->trem = trem;
+    svf_set(&v->f3, 2550.0f, 6.0f);
     v->sp.send = 0.06f + 0.12f * dist;   /* out in the open: a bleat carries dry, without the far voice's echo */
 }
 
@@ -481,16 +482,25 @@ void crowd_render(Crowd *c, Rng *r, Bus *b) {
         svf_set(&v->f1, v->fa1 + (v->fb1 - v->fa1) * u, 7.0f);
         svf_set(&v->f2, v->fa2 + (v->fb2 - v->fa2) * u, 9.0f);
         float f = v->f0 * (1.0f + v->jit) * (1.0f - 0.15f * u), e = 0, tr = 1.0f;
-        if (v->trem > 0) { v->tph += v->trem * dt * OUT_BLOCK; if (v->tph >= 1.0f) v->tph -= 1.0f; float q = sine_c(v->tph); f *= 1.0f + 0.03f * q; tr = 0.72f + 0.28f * q; }
+        if (v->trem > 0) {   /* a bleat (a sheep's, measured): it rises into its note, holds, sags a little; a quick quaver,
+                              * mostly in the pitch */
+            v->tph += v->trem * dt * OUT_BLOCK; if (v->tph >= 1.0f) v->tph -= 1.0f;
+            float q = sine_c(v->tph), rise = u < 0.15f ? 0.88f + 0.12f * (u / 0.15f) : 1.0f - 0.04f * (u - 0.15f);
+            f = v->f0 * (1.0f + 0.5f * v->jit) * rise * (1.0f + 0.018f * q); tr = 0.9f + 0.1f * q;
+        }
         for (int i = 0; i < OUT_BLOCK; i++) {
             if ((i & 7) == 0) {
                 float uu = v->t / v->dur;
-                if (v->trem > 0) { float a = uu * 12.0f, r = 1.0f - uu; e = (a < 1.0f ? a : 1.0f) * (r > 0 ? r * (2.0f - r) : 0) * tr; }   /* a bleat: straight in, quickly gone */
+                if (v->trem > 0) {   /* a bleat: straight in, held, gone in its last third */
+                    float a = uu * 12.0f, r = uu < 0.65f ? 1.0f : (1.0f - uu) / 0.35f;
+                    e = (a < 1.0f ? a : 1.0f) * (r > 0 ? r * (2.0f - r) : 0) * tr;
+                }
                 else { e = sine_c(uu * 0.5f); e = e > 0 ? fm_exp2f(0.7f * fm_log2f(e + 1e-9f)) * tr : 0; }
             }
             v->ph += f * dt; if (v->ph >= 1.0f) v->ph -= 1.0f;
             float saw = 2.0f * v->ph - 1.0f;
-            float x = svf_bp(&v->f1, saw) * 0.5f + svf_bp(&v->f2, saw) * 0.3f;
+            float x = svf_bp(&v->f1, saw) * 0.5f + svf_bp(&v->f2, saw) * (v->trem > 0 ? 0.7f : 0.3f);
+            if (v->trem > 0) x += svf_bp(&v->f3, saw) * 2.2f;
             emit(b, i, &v->sp, x * e * v->amp * c->level);
             v->t += dt;
         }
