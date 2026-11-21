@@ -537,7 +537,7 @@ static void input(void)
 void app_input_only(void) { input(); }
 
 /* ------------------------------------------------------------------ the scene: sprites */
-enum { SK_BIRD, SK_DOT, SK_RING, SK_DRIP, SK_STREAK, SK_FLAKE, SK_MOVER, SK_DIAMOND, SK_BAR, SK_SQUARE, SK_SPARK, SK_GUST };
+enum { SK_BIRD, SK_DOT, SK_RING, SK_DRIP, SK_STREAK, SK_FLAKE, SK_MOVER, SK_DIAMOND, SK_BAR, SK_SQUARE, SK_SPARK, SK_GUST, SK_SHEEP };
 typedef struct { uint8_t kind, layer, on, blink; float x, y, vx, vy, g, age, life, a, b, ty; } spr_t;
 #define NSPR 140
 static spr_t spr[NSPR] PLAT_POOL;        /* (the pool is not cleared at boot: app_ui_init clears it) */
@@ -637,9 +637,8 @@ static void event_sprites(const UiEvent *u)
         if ((s = spawn(SK_MOVER, l, dir > 0 ? -4 : 244, ground_y(d) - 10 - frand() * 14, dur))) { s->vx = dir * 248.0f / dur; s->a = 2; s->b = 1; s->ty = 3; }
         break;
     }
-    case GL_SHEEP:                               /* on the hillside: a white blob, and its baa */
-        if ((s = spawn(SK_DOT, l, x, 70 + (1.0f - d) * 30 + frand() * 6, 2.0f))) s->a = 2;
-        if ((s = spawn(SK_RING, l, x, 68 + (1.0f - d) * 30, 1.0f))) { s->a = 2; s->b = 10; s->g = 0.5f; }
+    case GL_SHEEP:                               /* a sheep pops up in the field as it bleats, then fades */
+        if ((s = spawn(SK_SHEEP, l, x < 12 ? 12 : x > 228 ? 228 : x, 86 + (1.0f - d) * 40 + frand() * 6, 2.4f))) s->b = frand() < 0.5f ? -1.0f : 1.0f;
         break;
     case GL_ROCK:
         for (int i = 0; i < 6; i++) if ((s = spawn(SK_DRIP, l, x + (frand() - 0.5f) * 14, 10 + frand() * 6, 3.0f))) { s->ty = ground_y(d) + (frand() - 0.5f) * 6; s->g = 200 + frand() * 120; s->age = -0.05f * i; s->a = 2; }
@@ -821,6 +820,24 @@ static void draw_scene(void)
             break;
         }
         case SK_DOT: s_rect(x, y, s->a + 1, s->a, c); break;
+        case SK_SHEEP: {                         /* fleece, legs, a dark face; the baa from its mouth */
+            float k = q > 0.6f ? 1.0f - (q - 0.6f) / 0.4f : 1.0f, f = s->b;
+            uint16_t wool = dim(C_WHITE, 0.85f * k), face = dim(c, k);
+            if (s->age < 0.12f) y -= 1.5f * (1.0f - s->age / 0.12f);   /* (pops up) */
+            s_rect(x - 4, y - 3, 9, 4, wool);
+            s_rect(x - 3, y - 4, 7, 1, wool);
+            for (int g = 0; g < 4; g++) s_rect(x - 3 + g * 2, y + 1, 1, 2, face);
+            float hx = f > 0 ? x + 5 : x - 7;
+            s_rect(hx, y - 4, 2, 3, face);
+            s_pset(f > 0 ? hx + 2 : hx - 1, y - 4, face);   /* an ear */
+            if (s->age < 0.7f) {                 /* the bleat: two short strokes, spreading */
+                float u = s->age / 0.7f, mx = f > 0 ? hx + 3 : hx - 2, o = 2 + 4 * u;
+                uint16_t b = dim(c, k * (1.0f - u));
+                s_line(mx + f * o, y - 4, mx + f * (o + 2), y - 5.5f, b);
+                s_line(mx + f * o, y - 2, mx + f * (o + 2), y - 1, b);
+            }
+            break;
+        }
         case SK_SQUARE: s_rect(x - 1, y - 1, s->a > 0 ? s->a : 2, s->a > 0 ? s->a : 2, c); break;
         case SK_RING: { float r = s->a + (s->b - s->a) * q; draw_ring(x, y, r, r * (s->g > 0 ? s->g : 0.4f), dim(c, 1.0f - q)); break; }
         case SK_DRIP: s_rect(x, y, s->a > 1 ? 2 : 1, 2, c); break;

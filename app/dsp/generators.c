@@ -481,7 +481,11 @@ void crowd_render(Crowd *c, Rng *r, Bus *b) {
         float f = v->f0 * (1.0f + v->jit) * (1.0f - 0.15f * u), e = 0, tr = 1.0f;
         if (v->trem > 0) { v->tph += v->trem * dt * OUT_BLOCK; if (v->tph >= 1.0f) v->tph -= 1.0f; float q = sine_c(v->tph); f *= 1.0f + 0.03f * q; tr = 0.72f + 0.28f * q; }
         for (int i = 0; i < OUT_BLOCK; i++) {
-            if ((i & 7) == 0) { float uu = v->t / v->dur; e = sine_c(uu * 0.5f); e = e > 0 ? fm_exp2f(0.7f * fm_log2f(e + 1e-9f)) * tr : 0; }
+            if ((i & 7) == 0) {
+                float uu = v->t / v->dur;
+                if (v->trem > 0) { float a = uu * 12.0f, r = 1.0f - uu; e = (a < 1.0f ? a : 1.0f) * (r > 0 ? r * (2.0f - r) : 0) * tr; }   /* a bleat: straight in, quickly gone */
+                else { e = sine_c(uu * 0.5f); e = e > 0 ? fm_exp2f(0.7f * fm_log2f(e + 1e-9f)) * tr : 0; }
+            }
             v->ph += f * dt; if (v->ph >= 1.0f) v->ph -= 1.0f;
             float saw = 2.0f * v->ph - 1.0f;
             float x = svf_bp(&v->f1, saw) * 0.5f + svf_bp(&v->f2, saw) * 0.3f;

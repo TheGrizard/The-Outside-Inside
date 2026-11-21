@@ -408,15 +408,15 @@ static void insect_hum_block(Engine *e, Source *s) {
 static void sheep_fire(Engine *e, Source *s, float pan, float dist, float x) {
     (void)e; (void)x;
     int lamb = rng_f(&s->rng) < 0.25f;
-    float f0 = lamb ? rng_range(&s->rng, 380, 470) : rng_range(&s->rng, 190, 260), dur = lamb ? rng_range(&s->rng, 0.5f, 0.8f) : rng_range(&s->rng, 0.7f, 1.3f);
-    crowd_bleat(&s->g.crowd, f0, dur, 850, 1350, 700, 1200, lamb ? 9.0f : rng_range(&s->rng, 6.0f, 8.0f), pan, dist, 1.0f);
+    float f0 = lamb ? rng_range(&s->rng, 480, 620) : rng_range(&s->rng, 300, 400), dur = lamb ? rng_range(&s->rng, 0.25f, 0.4f) : rng_range(&s->rng, 0.35f, 0.6f);
+    crowd_bleat(&s->g.crowd, f0, dur, 950, 1750, 800, 1450, lamb ? 14.0f : rng_range(&s->rng, 10.0f, 13.0f), pan, dist, 1.0f);
     if (rng_f(&s->rng) < 0.4f) { s->user[0] = rng_range(&s->rng, 1.0f, 3.0f); s->user[1] = pan; }   /* an answer, from elsewhere */
 }
 static void sheep_block(Engine *e, Source *s) {
     if (s->user[0] <= 0 || (s->user[0] -= BLK) > 0) return;
     float pan = s->user[1] + rng_range(&s->rng, 0.3f, 0.7f) * (s->user[1] > 0 ? -1.0f : 1.0f);
     engine_var_begin(e, s);
-    crowd_bleat(&s->g.crowd, rng_range(&s->rng, 190, 260), rng_range(&s->rng, 0.7f, 1.2f), 850, 1350, 700, 1200, rng_range(&s->rng, 6.0f, 8.0f), pan, rng_range(&s->rng, s->dist_lo, s->dist_hi), 0.9f);
+    crowd_bleat(&s->g.crowd, rng_range(&s->rng, 300, 400), rng_range(&s->rng, 0.35f, 0.6f), 950, 1750, 800, 1450, rng_range(&s->rng, 10.0f, 13.0f), pan, rng_range(&s->rng, s->dist_lo, s->dist_hi), 0.9f);
     engine_var_end();
     engine_post(e, L_ANIMALS, GL_SHEEP, pan, s->dist_hi, 0, 0, 0);
     s->user[0] = 0;
