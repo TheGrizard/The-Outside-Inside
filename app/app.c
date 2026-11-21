@@ -523,8 +523,15 @@ static void input(void)
 
     ui.btn = btn;
     ui.keys = keys;
-    plat_glow(1);
-    plat_leds((set.playing ? 1u << B_PLAY : 0u) | (set_dirty ? 1u << B_SAVE : 0u) | (btn & (1u << B_SEL | 1u << B_HOME | 1u << B_REC)), keys);
+    /* the lights: only what does something glows (bright while pressed); the rest stay dark. PLAY is green, lit while
+     * playing; SAVE lit while there is something unsaved */
+    {
+        const uint32_t used = 1u << B_HOME | 1u << B_SEL | 1u << B_REC | 1u << B_SAVE | 1u << B_OCTDN | 1u << B_OCTUP;
+        uint32_t wkeys = 0;
+        for (int l = 0; l < NUM_LAYERS; l++) wkeys |= 1u << WK[l];
+        uint32_t lit = (btn & used) | (set_dirty ? 1u << B_SAVE : 0u) | (set.playing ? LED_PLAY_GREEN : 0u);
+        plat_lights(lit, keys & wkeys, used | LED_PLAY_GREEN, wkeys, 2);
+    }
 }
 
 void app_input_only(void) { input(); }

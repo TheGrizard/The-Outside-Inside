@@ -27,6 +27,9 @@ the knobs are; each column's bar shows the sound's level as it plays, the white 
 | first four white keys | trigger one event now from WEATHER, ANIMALS, LANDSCAPE, HUMANS |
 | HOME tapped | processor load, cores, whether settings are being saved, and what each layer costs |
 
+Only the buttons and keys that do something light up: they glow, and light fully while pressed (PLAY green while
+playing, SAVE while there is something unsaved).
+
 A built-in environment starts with its own volumes and the densities as designed; your own environments keep the
 volumes they were saved with (and MEADOW starts calm). Each world has its own weather, and ENTROPY only drifts
 through that world's:
