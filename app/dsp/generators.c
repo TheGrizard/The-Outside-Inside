@@ -404,7 +404,9 @@ void crowd_say(Crowd *c, float f0, float dur, float fa1, float fa2, float fb1, f
     say(c, f0, dur, fa1, fa2, fb1, fb2, pan, dist, amp);
 }
 void crowd_bleat(Crowd *c, float f0, float dur, float fa1, float fa2, float fb1, float fb2, float trem, float pan, float dist, float amp) {
-    say(c, f0, dur, fa1, fa2, fb1, fb2, pan, dist, amp)->trem = trem;
+    CVoice *v = say(c, f0, dur, fa1, fa2, fb1, fb2, pan, dist, amp);
+    v->trem = trem;
+    v->sp.send = 0.06f + 0.12f * dist;   /* out in the open: a bleat carries dry, without the far voice's echo */
 }
 
 /* the vowels' first two formants (Hz, an adult's): a, e, i, o, u, and the neutral one */

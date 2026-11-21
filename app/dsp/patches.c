@@ -431,7 +431,7 @@ static void a_meadow(Engine *e) {
     s = engine_add(e, "insect hum", L_ANIMALS, G_HUM, B_BED); s->g.hum.level = 0.6f; s->block = insect_hum_block; memcpy(s->tod, tod_bee, sizeof s->tod);
     add_chorus(e, L_ANIMALS, "grasshoppers", &GRASSHOPPER, 0.4f, 4.0f, 9.0f, 0.1f, 6, 0.9f, 1.1f, 0.15f, 0.6f, tod_g, GL_DOT);
     s = engine_add(e, "sheep", L_ANIMALS, G_CROWD, B_SCATTER);
-    s->rate = 0.08f; s->g.crowd.level = 0.35f; s->dist_lo = 0.78f; s->dist_hi = 0.92f; s->fire = sheep_fire; s->block = sheep_block; s->glyph = GL_SHEEP;
+    s->rate = 0.08f; s->g.crowd.level = 0.3f; s->dist_lo = 0.6f; s->dist_hi = 0.8f; s->fire = sheep_fire; s->block = sheep_block; s->glyph = GL_SHEEP;
     memcpy(s->tod, tod_sh, sizeof s->tod);
     add_chorus(e, L_ANIMALS, "night crickets", &CRICKET, 0.22f, 0.7f, 1.1f, 0.3f, 8, 0.95f, 1.08f, 0.3f, 0.8f, TOD_NIGHT, GL_DOT);
 }
