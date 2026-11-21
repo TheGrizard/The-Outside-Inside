@@ -370,6 +370,12 @@ void hum_render(Hum *h, Rng *r, Bus *b) {
         if (v->noise > 0) { svf_set(&v->nf[0], v->noise_cut, 0.7f); svf_set(&v->nf[1], v->noise_cut * 1.04f, 0.7f); }
         float f = v->f * v->pmul;
         if (v->vib_depth > 0) { f *= fm_exp2f(v->vib_depth / 12.0f * sine_c(v->vph)); v->vph += v->vib_rate * dt * OUT_BLOCK; }   /* once a block */
+        float a = v->amp;
+        if (v->chug_depth > 0) {   /* (once a block; the chug follows the engine's pitch) */
+            v->chph += v->chug_rate * v->pmul * dt * OUT_BLOCK; if (v->chph >= 1.0f) v->chph -= 1.0f;
+            a *= 1.0f - v->chug_depth * (0.5f + 0.5f * sine_c(v->chph));
+        }
+        if (v->rattle > 0) { v->rat += (rng_bi(r) * 1.7f - v->rat) * 0.07f; a *= 1.0f + v->rattle * v->rat; }   /* (about 15 Hz and under) */
         for (int i = 0; i < OUT_BLOCK; i++) {
             float out[2];
             for (int c = 0; c < 2; c++) {
@@ -377,7 +383,7 @@ void hum_render(Hum *h, Rng *r, Bus *b) {
                 v->ph[c] += fc * dt; v->phm[c] += fc * v->ratio * dt;
                 float x = sine_c(v->ph[c] + v->index * sine_c(v->phm[c]) * 0.159f);
                 if (v->noise > 0) x += svf_lp(&v->nf[c], pink_run(&v->pk[c], rng_bi(r))) * v->noise * 3.0f;
-                out[c] = x * v->amp * h->level;
+                out[c] = x * a * h->level;
             }
             float l = out[0] * v->sp.gl, rr = out[1] * v->sp.gr;
             b->L[i] += l; b->R[i] += rr; b->sL[i] += l * v->sp.send; b->sR[i] += rr * v->sp.send;

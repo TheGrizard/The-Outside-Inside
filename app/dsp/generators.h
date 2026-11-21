@@ -133,6 +133,8 @@ typedef struct {
     float ph[2], phm[2], vph, pmul;
     Pink pk[2]; Svf nf[2];
     Spatial sp; int bed; float bed_width;
+    float chug_rate, chug_depth, chph;   /* an engine's chug: its loudness beating chug_rate times a second (0: none) */
+    float rattle, rat;                   /* a machine's rattle: its loudness shaken, unevenly (0: none) */
 } HVoice;
 typedef struct { float level; HVoice v[HUM_VOICES]; float energy; } Hum;
 

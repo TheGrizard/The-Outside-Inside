@@ -916,12 +916,44 @@ static void h_alien(Engine *e) {
     s = engine_add(e, "engine drone", L_HUMANS, G_HUM, B_BED); s->g.hum.level = 0.5f; s->block = alien_drone_block;
 }
 
+/* The motor hall (matched to a recording of factory machinery): two big motors a little apart (269 and 242 Hz, the
+ * first with its octave) beating against each other, a dark rumble of the works under them, all of it rattling
+ * and surging every few seconds; and the mains' 100 Hz low under that */
 static void factory_hum_block(Engine *e, Source *s) {
     Hum *h = &s->g.hum;
     if (!h->v[0].on) { hum_start(h, 50, 2.0f, 0.6f, 0.2f, 0.0f, 400, 0, 0, 0, 3.0f); spatial_set(&h->v[0].sp, -0.2f, 0.5f); }
-    if (!h->v[1].on) { hum_start(h, 113, 1.0f, 0.2f, 0.8f, 0.4f, 900, 0.3f, 0.08f, 0, 3.0f); spatial_set(&h->v[1].sp, 0.4f, 0.4f); }
+    if (!h->v[1].on) { hum_start(h, 269, 2.0f, 0.4f, 0.6f, 0.9f, 1300, 0, 0, 0, 3.0f); spatial_set(&h->v[1].sp, 0.35f, 0.45f); h->v[1].rattle = 0.45f; }
+    if (!h->v[2].on) { hum_start(h, 242, 1.0f, 0.2f, 0.8f, 0.8f, 1000, 0, 0, 0, 3.0f); spatial_set(&h->v[2].sp, -0.4f, 0.5f); h->v[2].rattle = 0.4f; }
     float act = src_tod(e, s) * (0.2f + 1.6f * e->eff.activity);
-    h->v[0].target = 0.22f + 0.14f * act; h->v[1].target = 0.15f * act;
+    s->user[4] += (rng_bi(&s->rng) * 1.4f - s->user[4]) * BLK * 0.6f;   /* the surges: every few seconds */
+    float surge = 1.0f + 0.3f * s->user[4];
+    h->v[0].target = 0.1f + 0.06f * act;
+    h->v[1].target = (0.08f + 0.1f * act) * surge; h->v[2].target = (0.06f + 0.08f * act) * (2.0f - surge);
+}
+/* The diesel plant (matched to a building-site recording): a big engine idling, 64-70 Hz with its overtones and
+ * the chug of its turning (a quarter of that), a faint whine of hydraulics; now and then it takes the load,
+ * revving up for a few seconds as it digs or lifts. user[0] the work left, [1] the next */
+static void diesel_block(Engine *e, Source *s) {
+    Hum *h = &s->g.hum;
+    if (!h->v[0].on) {
+        float f = rng_range(&s->rng, 64, 70);
+        hum_start(h, f, 1.0f, 1.6f, 0.4f, 0.55f, 2200, 0, 0, 0, 3.0f); spatial_set(&h->v[0].sp, 0.5f, 0.55f);
+        h->v[0].chug_rate = f / 4.0f; h->v[0].chug_depth = 0.45f;
+    }
+    if (!h->v[1].on) { hum_start(h, 1276, 1.56f, 0.3f, 1.5f, 0, 2000, 0.4f, 0.1f, 0, 3.0f); spatial_set(&h->v[1].sp, 0.45f, 0.6f); }
+    float act = src_tod(e, s) * (0.2f + 1.6f * e->eff.activity) * e->dens[L_HUMANS] * e->gov, work = 0;
+    if (s->user[0] > 0) {
+        float u = 1.0f - (s->user[0] -= BLK) / s->user[2];
+        work = u < 0.2f ? u / 0.2f : u > 0.8f ? (1.0f - u) / 0.2f : 1.0f;
+    } else if ((s->user[1] -= BLK * (0.3f + act)) <= 0) {
+        s->user[2] = s->user[0] = rng_range(&s->rng, 3.0f, 8.0f); s->user[1] = rng_range(&s->rng, 10.0f, 30.0f);
+        engine_post(e, L_HUMANS, GL_SQUARE, 0.5f, 0.55f, 0, 0, 0);
+        s->events++; e->layer_events[L_HUMANS]++;
+    }
+    h->v[0].pmul = h->v[1].pmul = 1.0f + 0.25f * work;
+    h->v[0].index = 1.6f + 0.8f * work;
+    h->v[0].target = (0.17f + 0.1f * act) * (1.0f + 0.6f * work);
+    h->v[1].target = 0.012f + 0.02f * work;
 }
 /* A press, run as a machine is: spells of stamping (its own pace, a little uneven), then idle; each stamp a metal
  * clank, a lower thud kept short, and now and then the clatter of the part dropping. user[0] stamps left in the
@@ -971,19 +1003,21 @@ static void freight_fire(Engine *e, Source *s, float pan, float dist, float x) {
 }
 static void h_industrial(Engine *e) {
     static const float tod_m[4] = { 0.8f, 1.0f, 0.8f, 0.6f }, tod_p[4] = { 0.6f, 1.0f, 0.8f, 0.5f }, tod_b[4] = { 0.8f, 1.0f, 0.8f, 0.3f };
-    Source *s = engine_add(e, "mains hum and fan", L_HUMANS, G_HUM, B_BED); s->g.hum.level = 0.5f; memcpy(s->tod, tod_m, sizeof s->tod); s->block = factory_hum_block;
+    Source *s = engine_add(e, "motor hall", L_HUMANS, G_HUM, B_BED); s->g.hum.level = 0.5f; memcpy(s->tod, tod_m, sizeof s->tod); s->block = factory_hum_block;
+    s = engine_add(e, "diesel plant", L_HUMANS, G_HUM, B_BED); s->g.hum.level = 0.5f; memcpy(s->tod, tod_p, sizeof s->tod); s->block = diesel_block;
+    /* the press, the yard, the air, the yard's traffic: quieter now, in among the machines */
     s = engine_add(e, "stamping press", L_HUMANS, G_RING, B_BED);
-    s->g.ring.level = 0.75f; memcpy(s->tod, tod_p, sizeof s->tod); s->block = press_block; s->glyph = GL_PRESS;
+    s->g.ring.level = 0.45f; memcpy(s->tod, tod_p, sizeof s->tod); s->block = press_block; s->glyph = GL_PRESS;
     s = engine_add(e, "metal in the yard", L_HUMANS, G_RING, B_SCATTER);
-    s->rate = 0.22f; s->alive = 1; s->g.ring.level = 0.55f; s->dist_lo = 0.35f; s->dist_hi = 0.85f; memcpy(s->tod, tod_p, sizeof s->tod);
+    s->rate = 0.22f; s->alive = 1; s->g.ring.level = 0.35f; s->dist_lo = 0.5f; s->dist_hi = 0.9f; memcpy(s->tod, tod_p, sizeof s->tod);
     s->fire = clang_fire; s->block = clang_block; s->glyph = GL_BAR;
     s = engine_add(e, "air release", L_HUMANS, G_AIR, B_SCATTER);
-    s->g.air.burst_mode = 1; s->g.air.colour = 0.1f; s->g.air.cutoff = 9000; s->g.air.hp = 3000; s->g.air.gust_depth = 0.2f;
-    s->g.air.level = 0.22f; s->g.air.width = 0.25f; s->g.air.send = 0.35f; s->rate = 0.12f; s->alive = 1; memcpy(s->tod, tod_p, sizeof s->tod);
+    s->g.air.burst_mode = 1; s->g.air.colour = 0.1f; s->g.air.cutoff = 6000; s->g.air.hp = 2000; s->g.air.gust_depth = 0.2f;
+    s->g.air.level = 0.14f; s->g.air.width = 0.25f; s->g.air.send = 0.35f; s->rate = 0.12f; s->alive = 1; memcpy(s->tod, tod_p, sizeof s->tod);
     s->fire = air_hiss_fire; s->glyph = GL_STEAM;
-    s = add_passby(e, "forklift", forklift_fire, 0.05f, 6, 11, 0.3f, 0.6f, 0.06f, 0.4f, GL_CAR); memcpy(s->tod, tod_b, sizeof s->tod);
+    s = add_passby(e, "forklift", forklift_fire, 0.05f, 6, 11, 0.4f, 0.7f, 0.06f, 0.17f, GL_CAR); memcpy(s->tod, tod_b, sizeof s->tod);
     s = engine_add(e, "reversing beeper", L_HUMANS, G_VOICE, B_PHRASE);
-    s->species[0] = &SP_BEEPER; s->nspecies = 1; s->g.voice.level = 0.4f; s->dist_lo = 0.6f; s->dist_hi = 0.85f; memcpy(s->tod, tod_b, sizeof s->tod);
+    s->species[0] = &SP_BEEPER; s->nspecies = 1; s->g.voice.level = 0.28f; s->dist_lo = 0.6f; s->dist_hi = 0.85f; memcpy(s->tod, tod_b, sizeof s->tod);
     s->glyph = GL_SQUARE; phrase_setup(s, &s->rng, 1);
     s = add_passby(e, "freight train", freight_fire, 0.012f, 25, 35, 0.6f, 0.85f, 0.05f, 0.55f, GL_TRAIN);
     s = engine_add(e, "freight wheels", L_HUMANS, G_RING, B_BED); s->g.ring.level = 0.3f; s->block = wheels_block;
