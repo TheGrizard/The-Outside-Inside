@@ -59,11 +59,12 @@ MIDI in: CC 20 to 23 are the layer volumes, CC 24 to 27 the macros, on any chann
 ### Journey
 
 JOURNEY, first in the environment list, travels round the Earth's places on its own, about an hour a loop: forest,
-meadow, city, industrial, ocean, swamp, jungle, caves and back to the forest. It stays about six minutes in each,
+meadow, city, industrial, ocean, swamp, jungle, caves and back to the forest. It stays six minutes in each,
 then takes a minute and a half to get to the next. On the way the weather turns first, then the other layers one
 at a time (the one loudest where you're going first, the one loudest where you were last), so for a while you hear
 both places at once and the sound never drops out. The weather glides to one that suits the next place, the day
-goes round (a day every two hours) and the places are evened out in loudness: made to play under a live set.
+goes round (a day an hour: one lap is one day, so started at dawn the forest is always morning and the caves
+always night) and the places are evened out in loudness: made to play under a live set.
 
 - **OCT+** travels on to the next place now; **OCT-** holds the journey where it is (and lets it go again).
 - **K1 to K4** (or CC 20 to 23) set the mix of the four layers for the whole journey.

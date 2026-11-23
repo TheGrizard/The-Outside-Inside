@@ -368,15 +368,16 @@ static void select_layer(int l) { ui.sel = (l % NUM_LAYERS + NUM_LAYERS) % NUM_L
 
 /* ------------------------------------------------------------------ the journey
  * Round the Earth's places, about an hour: forest, meadow, city, industrial, ocean, swamp, jungle, caves, and back.
- * About six minutes in each, then a minute and a half on the way to the next: the weather turns first, then the
+ * Six minutes in each, then a minute and a half on the way to the next: the weather turns first, then the
  * land, then the animals, then the people, each layer fading down, changing and coming back up while the others
  * play on, so the two places overlap on the way. The weather glides to one that suits the next place, the day goes
- * round (a day in two hours), and the places are evened out in loudness. OCT+ travels on now, OCT- holds here;
+ * round (a day an hour, so each lap is one day: each place at the same time of day, lap after lap, unless held or
+ * sent on), and the places are evened out in loudness. OCT+ travels on now, OCT- holds here;
  * K1-K4 set the mix of the four layers for the whole journey; turning WEATHER or TIME (or REC) takes them over
  * (the weather until the next place, the time from there on). Nothing of it is saved but that it is on. */
-#define J_STAY 330.0f
+#define J_STAY 360.0f
 #define J_TRAVEL 90.0f
-#define J_DAY 7200.0f
+#define J_DAY 3600.0f                            /* a day an hour: a loop of the eight, to the minute */
 static const uint8_t J_ROUTE[] = { 4, 9, 0, 8, 6, 5, 1, 3 };   /* FOREST MEADOW CITY INDUSTRIAL OCEAN SWAMP JUNGLE CAVES */
 #define J_N ((int)sizeof J_ROUTE)
 static const uint8_t J_WX[NUM_ENVS][5] = {     /* the weathers that suit each place (Earth's: 0 SNOW .. 10 WINDY) */
