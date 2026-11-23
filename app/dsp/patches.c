@@ -20,8 +20,10 @@ static const Material MAT_SLAM = { 5, { 1, 1.38f, 1.93f, 2.71f, 3.62f }, { 0.07f
 static const Material MAT_SCRAP = { 6, { 1, 1.41f, 2.13f, 2.87f, 3.91f, 5.3f }, { 0.16f, 0.12f, 0.1f, 0.08f, 0.06f, 0.045f }, { 1, 0.9f, 0.8f, 0.6f, 0.5f, 0.35f }, 2.0f, 3500, 15 };
 static const Material MAT_BEAM = { 4, { 1, 2.756f, 5.404f, 8.933f }, { 0.35f, 0.25f, 0.18f, 0.12f }, { 1, 0.7f, 0.5f, 0.3f }, 1.0f, 2500, 8 };
 /* a church bell (measured from a recording of one tolling): its partials at 0.75, 1, 1.31, 1.53 and 2.04 times the
- * strike note, and the hum an octave down, ringing for seconds */
+ * strike note, and the hum an octave down, ringing for seconds; and the same bell heard from further off (a second
+ * recording, two bells swinging): it falls 20 dB in a second or two */
 static const Material MAT_CHURCH = { 6, { 0.5f, 0.745f, 1.0f, 1.31f, 1.53f, 2.04f }, { 4.5f, 2.6f, 3.2f, 2.2f, 2.0f, 1.4f }, { 0.45f, 0.5f, 1, 0.6f, 0.7f, 0.6f }, 0.6f, 2000, 4 };
+static const Material MAT_CHURCH_FAR = { 6, { 0.5f, 0.745f, 1.0f, 1.31f, 1.53f, 2.04f }, { 1.6f, 0.9f, 1.0f, 0.7f, 0.65f, 0.5f }, { 0.45f, 0.5f, 1, 0.6f, 0.7f, 0.6f }, 0.6f, 2000, 4 };
 static const Material MAT_BELL = { 6, { 1, 2.0f, 2.38f, 3.0f, 4.0f, 5.04f }, { 3.0f, 2.2f, 1.8f, 1.4f, 1.0f, 0.7f }, { 1, 0.6f, 0.5f, 0.4f, 0.3f, 0.2f }, 0.3f, 3000 };
 
 static void set_surfaces(Rain *r, const float f[4], const float q[4], const float w[4], const float g[4]) {
@@ -1469,6 +1471,21 @@ static void ringing_block(Engine *e, Source *s) {
         s->user[4] += 1;
     } else for (int k = 0; k < 6; k++) s->ag[k].pitch = (float)k;   /* rounds to finish */
 }
+/* another church, further off (as recorded): two bells swinging out of step, mostly turn and turn about, a fifth of
+ * a second to a second apart (641 and 1061 Hz), half a minute to a minute of it every few minutes, on its own times.
+ * user[0] strokes left, [1] to the next, [2] till the next peal, [3] which rang last */
+static void far_bells_block(Engine *e, Source *s) {
+    if (s->user[0] <= 0) {
+        if ((s->user[2] -= BLK) > 0) return;
+        s->user[0] = (float)(30 + rng_int(&s->rng, 50)); s->user[1] = 0; s->user[2] = rng_range(&s->rng, 150.0f, 360.0f);
+        engine_post(e, L_HUMANS, GL_BEACON, 0.55f, 0.85f, 0, 0, 0);
+        return;
+    }
+    if ((s->user[1] -= BLK) > 0) return;
+    int hi = rng_f(&s->rng) < 0.7f ? !(int)s->user[3] : (int)s->user[3];
+    ring_strike(&s->g.ring, &s->rng, &MAT_CHURCH_FAR, hi ? 1061.0f : 641.0f, rng_range(&s->rng, 0.6f, 0.9f), 0.55f, 1.0f, hi ? 0.6f : 0.5f, 0.85f);
+    s->user[3] = (float)hi; s->user[1] = rng_range(&s->rng, 0.2f, 1.0f) + (rng_f(&s->rng) < 0.1f ? 1.0f : 0); s->user[0] -= 1;
+}
 /* a lawnmower in someone's garden: on for a few minutes, up and down the lawn. user[0] time left, [1] till next, [2] the phase */
 static void mower_block(Engine *e, Source *s) {
     Hum *h = &s->g.hum;
@@ -1490,6 +1507,7 @@ static void h_village(Engine *e) {
     static const float tod_m[4] = { 0.2f, 1.0f, 0.5f, 0.0f };
     Source *s = engine_add(e, "church bells", L_HUMANS, G_RING, B_BED); s->g.ring.level = 1.4f; s->block = ringing_block; s->user[3] = 30.0f;
     add_far_noise(e, "village road", 2.0f, 300, 0.04f, 0.1f);
+    s = engine_add(e, "far church", L_HUMANS, G_RING, B_BED); s->g.ring.level = 1.6f; s->block = far_bells_block; s->user[2] = 90.0f;
     s = engine_add(e, "lawnmower", L_HUMANS, G_HUM, B_BED); s->g.hum.level = 0.5f; s->block = mower_block; s->user[1] = 60.0f; memcpy(s->tod, tod_m, sizeof s->tod);
     add_passby(e, "car through the village", jeep_fire, 0.02f, 8, 14, 0.4f, 0.7f, 0.05f, 0.22f, GL_CAR);
 }
