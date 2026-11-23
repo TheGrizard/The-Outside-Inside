@@ -17,13 +17,13 @@ the knobs are; each column's bar shows the sound's level as it plays, the white 
 | K1 to K4 | volume of WEATHER, ANIMALS, LANDSCAPE, HUMANS (the columns show while you turn) |
 | SEL held + K1 to K4 | each layer's density: how often its events happen |
 | HOME held | shows what the knobs do now: the macros; turn K1 to K4 to set WEATHER, TIME, ACTIVITY, ENTROPY |
-| ALGORITHM | change environment, from a list: the ten built in A to Z, then your own (USER 1 ...) |
+| ALGORITHM | change environment, from a list: JOURNEY, the ten built in A to Z, then your own (USER 1 ...) |
 | SELECT (turn), or tap SEL | choose the layer to edit (its preset list opens) |
 | PRESET | change the chosen layer's preset, A to Z |
 | REC | randomise the macros |
 | SAVE | save as your own environment (USER 1, USER 2 ... up to 8) |
 | PLAY | stop and start (it fades) |
-| OCT- / OCT+ | the previous / next weather, A to Z |
+| OCT- / OCT+ | the previous / next weather, A to Z (on a journey: hold here / travel on now) |
 | first four white keys | trigger one event now from WEATHER, ANIMALS, LANDSCAPE, HUMANS |
 | HOME tapped | processor load, cores, whether settings are being saved, and what each layer costs |
 
@@ -55,6 +55,22 @@ The current scene (levels, macros, patches) is kept by itself a few seconds afte
 comes back where you left it.
 
 MIDI in: CC 20 to 23 are the layer volumes, CC 24 to 27 the macros, on any channel.
+
+### Journey
+
+JOURNEY, first in the environment list, travels round the Earth's places on its own, about an hour a loop: forest,
+meadow, city, industrial, ocean, swamp, jungle, caves and back to the forest. It stays about six minutes in each,
+then takes a minute and a half to get to the next. On the way the weather turns first, then the other layers one
+at a time (the one loudest where you're going first, the one loudest where you were last), so for a while you hear
+both places at once and the sound never drops out. The weather glides to one that suits the next place, the day
+goes round (a day every two hours) and the places are evened out in loudness: made to play under a live set.
+
+- **OCT+** travels on to the next place now; **OCT-** holds the journey where it is (and lets it go again).
+- **K1 to K4** (or CC 20 to 23) set the mix of the four layers for the whole journey.
+- Turning **WEATHER** takes the weather over until the next place; turning **TIME** sets the time of day, and the
+  day goes on from there. ACTIVITY and ENTROPY work as ever.
+- **SAVE** keeps the place you're at as one of your own environments; the journey goes on.
+- Turned off on a journey, the FM-1 comes back on a journey, from the place it was in.
 
 ## Building it
 

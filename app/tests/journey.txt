@@ -1,0 +1,45 @@
+# the journey: on from the forest to the meadow, the layers changing one at a time; held; the mix; and out of it
+expect env 4
+turn ALGO -4
+wait 300
+expect env 250
+expect jat 4
+expect jtravel 1
+wait 3000
+shot journey.png
+tap OCT+
+wait 92000
+expect jtravel 0
+expect enginepatch2 4
+tap OCT+
+wait 300
+expect jtravel 1
+expect jat 9
+wait 38000
+shot journey_on_the_way.png
+expect enginepatch0 9
+expect enginepatch1 9
+expect enginepatch2 4
+expect enginepatch3 4
+wait 57000
+expect jtravel 0
+expect enginepatch2 9
+expect enginepatch3 9
+expect level1 89
+shot journey_meadow.png
+tap OCT-
+wait 300
+expect jheld 1
+wait 340000
+expect jtravel 0
+expect jat 9
+tap OCT-
+wait 300
+expect jheld 0
+turn K2 -5
+wait 300
+expect level1 77
+turn ALGO 1
+wait 300
+expect env 7
+expect jtravel 0

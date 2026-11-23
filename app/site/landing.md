@@ -23,17 +23,21 @@ installer: `python3 tools/fm1_install.py {{PKG}}`.
 | K1 to K4 | the volume of WEATHER, ANIMALS, LANDSCAPE, HUMANS (the levels rise up as you turn) |
 | SEL held + K1 to K4 | each layer's density: how often its events happen |
 | HOME held + K1 to K4 | the macros: WEATHER, TIME, ACTIVITY, ENTROPY |
-| ALGORITHM | the environment: alien, caves, city, forest, industrial, jungle, meadow, ocean, space, swamp, then your own |
+| ALGORITHM | the environment: JOURNEY (all of them in turn), then alien, caves, city, forest, industrial, jungle, meadow, ocean, space, swamp, then your own |
 | SELECT, or tap SEL | the layer to edit; PRESET changes its preset |
 | REC | randomise the macros |
 | SAVE | save as your own environment (up to 8) |
 | PLAY | stop and start |
-| OCT- / OCT+ | the previous or next weather |
+| OCT- / OCT+ | the previous or next weather; on a journey, hold here or travel on now |
 | the first four white keys | one event now from each layer |
 | HOME tapped | the processor's load and whether settings are being saved |
 
 ENTROPY is how much the scene changes by itself: at zero it stays as you set it; turned up, the weather drifts, the
 light changes and the place moves through its moods. Where a sound appears on the screen is where you hear it.
+
+JOURNEY travels round the Earth's places by itself, about an hour a loop, the layers changing one at a time so the
+places blend into each other, the weather and the time of day moving on: a backdrop for a live set. K1 to K4 set
+its mix; WEATHER and TIME take over when turned.
 
 The FM-1 also works as a USB audio interface: record it straight into a computer.
 

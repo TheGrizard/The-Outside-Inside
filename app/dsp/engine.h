@@ -141,6 +141,7 @@ struct Engine {
     /* patches */
     int patch[NUM_LAYERS], want[NUM_LAYERS];
     float fade[NUM_LAYERS];             /* 0..1: a layer being swapped fades out, swaps, fades in */
+    float swap_out, swap_in;            /* how long (s) it takes: 0.25 and 0.4; the journey's slower */
     float master_fade;
     /* the conductor */
     Macros m;                           /* glides to user + state */
@@ -153,6 +154,8 @@ struct Engine {
     float howl, drop, thunder_near, muffle, animals_w, snow;
     float gust, startle, t, swell_ui; int swell_peak;
     int wset;                           /* the weather set in play (the weather preset's world) */
+    float cycle;                        /* <0: TIME as set (dawn to night). 0..1: a day going round (dawn, day, dusk,
+                                         * night, dawn again), the journey's: it sets the time of day in place of TIME */
     float shelter;                      /* 0..1: storms and heavy rain send the animals into cover (not the jungle's) */
     float shower, shower_t, shower_len, shower_amp, shower_wait;   /* THUNDER's passing showers */
     float wx_slow, wx_aim, wx_left;     /* Space's and the alien world's weather, wandering over minutes */

@@ -21,6 +21,7 @@
 static Engine eng PLAT_POOL;
 
 /* ------------------------------------------------------------------ settings */
+#define ALGO_JOURNEY 250                 /* set.algo: the journey (not an environment) */
 #define SET_MAGIC 0x4F555432u            /* "OUT2" (OUT1: before MEADOW and THUNDER; moved on at load) */
 #define SET_MAGIC1 0x4F555431u
 #define NUSER 8
@@ -62,7 +63,7 @@ static void settings_defaults(void)
 
 static int settings_ok(void)
 {
-    if (set.magic != SET_MAGIC || set.nusers > NUSER || set.algo >= NUM_ENVS + set.nusers) return 0;
+    if (set.magic != SET_MAGIC || set.nusers > NUSER || (set.algo >= NUM_ENVS + set.nusers && set.algo != ALGO_JOURNEY)) return 0;
     for (int l = 0; l < NUM_LAYERS; l++) if (set.cur.patch[l] >= NUM_ENVS) return 0;
     return 1;
 }
@@ -94,6 +95,15 @@ static void settings_load(void)
     }
     set.playing = 1;                     /* it always starts playing */
 }
+
+/* the journey's state (the journey itself is further on, after the environments) */
+static struct {
+    int on, at, travelling, held, wx_own;
+    float stay, t, cyc, cyc_aim, wx, wx_from, wx_to;
+    uint8_t from[NUM_LAYERS], to[NUM_LAYERS], swapped[NUM_LAYERS], mac0, mac1;
+    float lv_from[NUM_LAYERS], mix[NUM_LAYERS], swap_at[NUM_LAYERS], share[NUM_LAYERS];
+    uint32_t last;
+} J;
 
 /* the settings into the engine (the render reads them; single words, no lock needed) */
 static void engine_follow(void)
@@ -130,9 +140,9 @@ static void midi_in(void)                /* CC 20-23 layer volumes, 24-27 macros
     while (plat_midi_in(&pkt, &port)) {
         uint32_t st = (pkt >> 8) & 0xF0u, cc = (pkt >> 16) & 0x7Fu, v = pkt >> 24 & 0x7Fu;
         if (st != 0xB0u) continue;
-        if (cc >= 20u && cc <= 23u) eng.level[cc - 20u] = v / 127.0f;
-        else if (cc == 24u) eng.user.weather = v / 127.0f;
-        else if (cc == 25u) eng.user.time = v / 127.0f;
+        if (cc >= 20u && cc <= 23u) { if (J.on) J.mix[cc - 20u] = v * 100.0f / 127.0f; else eng.level[cc - 20u] = v / 127.0f; }
+        else if (cc == 24u) { if (J.on) set.cur.mac[0] = (uint8_t)(v * 100u / 127u); else eng.user.weather = v / 127.0f; }
+        else if (cc == 25u) { if (J.on) set.cur.mac[1] = (uint8_t)(v * 100u / 127u); else eng.user.time = v / 127.0f; }
         else if (cc == 26u) eng.user.activity = v / 127.0f;
         else if (cc == 27u) eng.user.entropy = v / 127.0f;
     }
@@ -187,6 +197,9 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
 
 void app_panic(void) { muted = 1; gain_now = 0; }
 
+static void j_start(void);
+static float frand(void);
+
 void app_init(void)
 {
     dsp_init();
@@ -195,6 +208,7 @@ void app_init(void)
     eng.clock = plat_ticks24;
     eng.core = plat_core;
     engine_follow();
+    if (set.algo == ALGO_JOURNEY) j_start();   /* (on again: the journey carries on from the land it was in) */
     on2_mask = 0x3u;
     two_cores = plat_cpu2_set(1) == 0;   /* else everything on this core */
 }
@@ -269,20 +283,22 @@ static const uint8_t ENV_LEVELS[NUM_ENVS][NUM_LAYERS] = {
     { 50, 70, 65, 30 },   /* MEADOW */
 };
 
-/* the environments in the order ALGORITHM steps: the ten A to Z, then the user's */
-static int env_count(void) { return NUM_ENVS + set.nusers; }
-static int env_at(int pos) { return pos < NUM_ENVS ? env_order[pos] : pos; }
-static int env_pos(int algo) { return algo < NUM_ENVS ? pos_of(env_order, NUM_ENVS, algo) : algo; }
+/* the environments in the order ALGORITHM steps: JOURNEY, the ten A to Z, then the user's */
+static int env_count(void) { return 1 + NUM_ENVS + set.nusers; }
+static int env_at(int pos) { return pos == 0 ? ALGO_JOURNEY : pos - 1 < NUM_ENVS ? env_order[pos - 1] : pos - 1; }
+static int env_pos(int algo) { return algo == ALGO_JOURNEY ? 0 : 1 + (algo < NUM_ENVS ? pos_of(env_order, NUM_ENVS, algo) : algo); }
 
 static void env_label(int algo, char *t)
 {
     t[0] = 0;
-    if (algo < NUM_ENVS) text_cat(t, ENV_NAMES[algo]);
+    if (algo == ALGO_JOURNEY) text_cat(t, "JOURNEY");
+    else if (algo < NUM_ENVS) text_cat(t, ENV_NAMES[algo]);
     else { char n[4]; text_cat(t, "USER "); int_text(algo - NUM_ENVS + 1, n); text_cat(t, n); }
 }
 static void env_name(char *t)            /* with a star when a layer's preset has been changed */
 {
     env_label(set.algo, t);
+    if (set.algo == ALGO_JOURNEY) return;
     for (int l = 0; l < NUM_LAYERS; l++) {
         int want = set.algo < NUM_ENVS ? set.algo : set.user[set.algo - NUM_ENVS].patch[l];
         if (set.cur.patch[l] != want) { text_cat(t, "*"); break; }
@@ -350,8 +366,167 @@ static void changed(void) { set_dirty = 1; autosave_at = plat_ms() + AUTOSAVE_MS
 
 static void select_layer(int l) { ui.sel = (l % NUM_LAYERS + NUM_LAYERS) % NUM_LAYERS; show_list(ui.sel); }
 
+/* ------------------------------------------------------------------ the journey
+ * Round the Earth's places, about an hour: forest, meadow, city, industrial, ocean, swamp, jungle, caves, and back.
+ * About six minutes in each, then a minute and a half on the way to the next: the weather turns first, then the
+ * land, then the animals, then the people, each layer fading down, changing and coming back up while the others
+ * play on, so the two places overlap on the way. The weather glides to one that suits the next place, the day goes
+ * round (a day in two hours), and the places are evened out in loudness. OCT+ travels on now, OCT- holds here;
+ * K1-K4 set the mix of the four layers for the whole journey; turning WEATHER or TIME (or REC) takes them over
+ * (the weather until the next place, the time from there on). Nothing of it is saved but that it is on. */
+#define J_STAY 330.0f
+#define J_TRAVEL 90.0f
+#define J_DAY 7200.0f
+static const uint8_t J_ROUTE[] = { 4, 9, 0, 8, 6, 5, 1, 3 };   /* FOREST MEADOW CITY INDUSTRIAL OCEAN SWAMP JUNGLE CAVES */
+#define J_N ((int)sizeof J_ROUTE)
+static const uint8_t J_WX[NUM_ENVS][5] = {     /* the weathers that suit each place (Earth's: 0 SNOW .. 10 WINDY) */
+    { 4, 5, 3, 10, 2 },   /* CITY: drizzle, rain, breeze, windy, calm */
+    { 6, 7, 5, 2, 3 },    /* JUNGLE: downpour, thunderstorm, rain, calm, breeze */
+    { 2, 2, 2, 2, 2 },    /* (SPACE) */
+    { 2, 4, 5, 3, 1 },    /* CAVES */
+    { 3, 4, 5, 1, 2 },    /* FOREST: breeze, drizzle, rain, fog, calm */
+    { 1, 2, 7, 4, 5 },    /* SWAMP: fog, calm, thunderstorm, drizzle, rain */
+    { 10, 9, 3, 5, 2 },   /* OCEAN: windy, gale, breeze, rain, calm */
+    { 2, 2, 2, 2, 2 },    /* (ALIEN) */
+    { 4, 1, 10, 2, 5 },   /* INDUSTRIAL: drizzle, fog, windy, calm, rain */
+    { 2, 3, 2, 8, 4 },    /* MEADOW: calm, breeze, calm, thunder, drizzle */
+};
+static const float J_TRIM[NUM_ENVS] = {         /* each place's level, to even them out (measured: 10^(dB/40)) */
+    0.955f, 1.109f, 1, 1.135f, 0.983f, 1.078f, 0.759f, 1, 0.955f, 1.274f };
+/* each layer's loudness in each place at the journey's levels (dB, measured), so the way there never empties: the
+ * weather changes first, then of the rest the one that gains most (loud where you're going, quiet where you were)
+ * and last the one that loses most. Into the city: the traffic before the birds go */
+static const int8_t J_LOUD[NUM_ENVS][NUM_LAYERS] = {
+    { -34, -41, -42, -20 }, { -26, -22, -28, -47 }, { -30, -30, -30, -30 }, { -29, -43, -21, -37 }, { -28, -27, -22, -39 },
+    { -30, -23, -24, -47 }, { -32, -40, -18, -53 }, { -30, -30, -30, -30 }, { -36, -46, -36, -21 }, { -27, -24, -30, -38 } };
+static const float J_SLOT[NUM_LAYERS] = { 12, 34, 56, 78 };   /* when on the way the changes come (s) */
+#define J_DOWN 9.0f                              /* each layer eases down this long before (to J_LOW, never out: the place
+                                                  * never empties), changes over J_SWAP_S, comes up this long after */
+#define J_UP 10.0f
+#define J_LOW 0.35f                              /* (more for a layer that is most of the sound: up to J_LOW + 0.4) */
+#define J_SWAP_S 3.0f
+static float smooth01(float u) { u = u < 0 ? 0 : u > 1 ? 1 : u; return u * u * (3 - 2 * u); }
+static float j_level(int env, int l) { float v = ENV_LEVELS[env][l] * J_TRIM[env] * J.mix[l] / 75.0f; return v > 100 ? 100 : v; }
+
+static void j_go(int to)                 /* on the way to stop `to` of the route */
+{
+    int env = J_ROUTE[to];
+    J.at = to; J.travelling = 1; J.t = 0;
+    for (int l = 0; l < NUM_LAYERS; l++) { J.from[l] = set.cur.patch[l]; J.to[l] = (uint8_t)env; J.swapped[l] = J.from[l] == J.to[l]; J.lv_from[l] = set.cur.level[l]; }
+    J.swap_at[L_WEATHER] = J_SLOT[0];
+    int order[3] = { L_ANIMALS, L_LANDSCAPE, L_HUMANS };
+    for (int i = 0; i < 3; i++) for (int k = i + 1; k < 3; k++) {   /* by what each gains, most first */
+        int a = order[i], b = order[k];
+        if (J_LOUD[env][b] - J_LOUD[J.from[b]][b] > J_LOUD[env][a] - J_LOUD[J.from[a]][a]) { order[i] = b; order[k] = a; }
+    }
+    for (int i = 0; i < 3; i++) J.swap_at[order[i]] = J_SLOT[1 + i];
+    {   /* how much of each place's sound each layer is (the more, the less it eases down, the more the rest fill in) */
+        float pf[NUM_LAYERS], pt[NUM_LAYERS], sf = 0, st = 0;
+        for (int l = 0; l < NUM_LAYERS; l++) { pf[l] = fm_exp2f(J_LOUD[J.from[l]][l] * 0.3322f); pt[l] = fm_exp2f(J_LOUD[env][l] * 0.3322f); sf += pf[l]; st += pt[l]; }
+        for (int l = 0; l < NUM_LAYERS; l++) { float a = pf[l] / sf, b = pt[l] / st; J.share[l] = J.swapped[l] ? 0 : a > b ? a : b; }
+    }
+    int w, tries = 0;
+    do w = J_WX[env][(int)(frand() * 5) % 5]; while (++tries < 6 && weather_value(WX_EARTH, w) == J.wx_to);
+    J.wx_from = J.wx; J.wx_to = weather_value(WX_EARTH, w); J.wx_own = 0;
+}
+static void j_start(void)
+{
+    eng.swap_out = J_SWAP_S * 0.4f; eng.swap_in = J_SWAP_S * 0.6f;
+    int p = set.cur.patch[L_LANDSCAPE], at = 0;
+    for (int i = 0; i < J_N; i++) if (J_ROUTE[i] == p) at = i;
+    J.on = 1; J.held = 0; J.last = plat_ms();
+    for (int l = 0; l < NUM_LAYERS; l++) J.mix[l] = 75;
+    J.wx = J.wx_to = set.cur.mac[0] / 100.0f;
+    J.cyc = J.cyc_aim = set.cur.mac[1] / 100.0f * 0.75f;
+    J.mac0 = set.cur.mac[0]; J.mac1 = set.cur.mac[1];
+    j_go(at);
+}
+static void j_stop(void) { J.on = 0; eng.cycle = -1; eng.swap_out = 0.25f; eng.swap_in = 0.4f; }
+static void j_place_name(char *t) { t[0] = 0; text_cat(t, ENV_NAMES[J.travelling && !J.swapped[L_LANDSCAPE] ? J.from[L_LANDSCAPE] : J_ROUTE[J.at]]); }
+static void j_status(char *t)
+{
+    t[0] = 0;
+    if (J.travelling && !J.swapped[L_LANDSCAPE]) { text_cat(t, "ON TO "); text_cat(t, ENV_NAMES[J_ROUTE[J.at]]); }
+    else if (J.travelling) text_cat(t, "ARRIVING");
+    else { text_cat(t, "JOURNEY"); if (J.held) text_cat(t, ", HELD"); }
+}
+
+static void j_tick(uint32_t now)
+{
+    if (!J.on) return;
+    float dt = (now - J.last) / 1000.0f;
+    J.last = now;
+    if (dt > 0.5f) dt = 0.5f;
+    if (!set.playing) return;
+    /* the user's hands first: WEATHER, TIME (the knob, MIDI, REC) */
+    if (set.cur.mac[0] != J.mac0) { J.wx = set.cur.mac[0] / 100.0f; J.wx_own = 1; }
+    if (set.cur.mac[1] != J.mac1) J.cyc_aim = set.cur.mac[1] / 100.0f * 0.75f + (J.cyc > 0.875f ? 1.0f : 0);
+    /* the day going round; a turned TIME glided to, the short way */
+    J.cyc_aim += dt / J_DAY;
+    J.cyc += (J.cyc_aim - J.cyc) * (dt / 8.0f > 1 ? 1 : dt / 8.0f);
+    if (J.cyc >= 1.0f) { J.cyc -= 1.0f; J.cyc_aim -= 1.0f; }
+    eng.cycle = J.cyc;
+    if (J.travelling) {
+        J.t += dt;
+        if (!J.wx_own) J.wx = J.wx_from + (J.wx_to - J.wx_from) * smooth01((J.t - 10.0f) / 60.0f);
+        int done = 1;
+        float lvs[NUM_LAYERS], dip[NUM_LAYERS], fill = 0;
+        for (int l = 0; l < NUM_LAYERS; l++) {
+            float lv, to = j_level(J.to[l], l), low = J_LOW + 0.4f * J.share[l];
+            dip[l] = 0;
+            if (J.from[l] == J.to[l]) lv = J.lv_from[l] + (to - J.lv_from[l]) * smooth01(J.t / J_TRAVEL);   /* the same here: a glide */
+            else if (J.t < J.swap_at[l]) { dip[l] = smooth01((J.t - (J.swap_at[l] - J_DOWN)) / J_DOWN); lv = J.lv_from[l] * (1.0f - (1.0f - low) * dip[l]); }
+            else {
+                if (!J.swapped[l]) { J.swapped[l] = 1; set.cur.patch[l] = J.to[l]; set.cur.dens[l] = 50; engine_want(&eng, l, J.to[l]); eng.dens[l] = 1.0f; }
+                float u = (J.t - J.swap_at[l] - J_SWAP_S * 0.5f) / J_UP;   /* (up once the engine's change is half done) */
+                dip[l] = 1.0f - smooth01(u);
+                lv = to * (low + (1.0f - low) * smooth01(u));
+                if (u < 1.0f) done = 0;
+            }
+            if (J.t < J_TRAVEL) done = 0;
+            lvs[l] = lv;
+            float sh = J.share[l] > 0.9f ? 0.9f : J.share[l];
+            fill += dip[l] * sh / (1.0f - sh);   /* the power the rest must make up while this one is down */
+        }
+        for (int l = 0; l < NUM_LAYERS; l++) {
+            float k = 1.0f;
+            if (dip[l] < 0.01f && fill > 0) { k = fm_sqrtf(fm_sqrtf(1.0f + fill)); if (k > 1.41f) k = 1.41f; }   /* (level^4 is power; at most +6 dB) */
+            float lv = lvs[l] * k; if (lv > 100) lv = 100;
+            set.cur.level[l] = (uint8_t)(lv + 0.5f); eng.level[l] = lv / 100.0f;
+        }
+        if (done) { J.travelling = 0; J.stay = J_STAY; }
+    } else {
+        for (int l = 0; l < NUM_LAYERS; l++) { float lv = j_level(J.to[l], l); set.cur.level[l] = (uint8_t)(lv + 0.5f); eng.level[l] = lv / 100.0f; }
+        if (!J.held && (J.stay -= dt) <= 0) j_go((J.at + 1) % J_N);
+    }
+    set.cur.mac[0] = J.mac0 = (uint8_t)(J.wx * 100.0f + 0.5f); eng.user.weather = J.wx;
+    float tm = J.cyc <= 0.75f ? J.cyc / 0.75f : J.cyc < 0.875f ? 1.0f : 0.0f;
+    set.cur.mac[1] = J.mac1 = (uint8_t)(tm * 100.0f + 0.5f);
+}
+static void j_travel_on(void)
+{
+    if (J.travelling) { pop("ON THE WAY", "ALREADY", C_TXT); return; }
+    J.held = 0;
+    j_go((J.at + 1) % J_N);
+    pop("TRAVELLING ON", ENV_NAMES[J_ROUTE[J.at]], C_TXT);
+}
+static void j_hold(void)
+{
+    J.held = !J.held;
+    if (J.held) pop("JOURNEY HELD", J.travelling ? "ON ARRIVAL" : "STAYING HERE", C_TXT);
+    else { if (!J.travelling && J.stay < 20.0f) J.stay = 20.0f; pop("JOURNEY", "MOVING ON AGAIN", C_TXT); }
+}
+
 static void env_load(int algo)
 {
+    if (algo == ALGO_JOURNEY) {          /* the journey: it carries on from where the land is now */
+        set.algo = ALGO_JOURNEY;
+        j_start();
+        changed();
+        set_dirty = 0;
+        return;
+    }
+    if (J.on) j_stop();
     set.algo = (uint8_t)algo;
     if (algo < NUM_ENVS) {               /* a built-in: its presets, its own volumes, densities as designed */
         for (int l = 0; l < NUM_LAYERS; l++) { set.cur.patch[l] = (uint8_t)algo; set.cur.level[l] = ENV_LEVELS[algo][l]; set.cur.dens[l] = 50; }
@@ -380,6 +555,12 @@ static void patch_step(int d)
 
 static void level_step(int l, int d)
 {
+    if (J.on) {                          /* the journey: its mix of the layers, wherever it goes */
+        J.mix[l] = J.mix[l] + 2 * d < 0 ? 0 : J.mix[l] + 2 * d > 100 ? 100 : J.mix[l] + 2 * d;
+        show_panel(PANEL_LEVELS);
+        if (ann_on()) { char n[8]; int_text((int32_t)J.mix[l], n); say_text(LAYER_NAME[l], n); }
+        return;
+    }
     set.cur.level[l] = (uint8_t)clamp(set.cur.level[l] + 2 * d, 0, 100);
     changed();
     show_panel(PANEL_LEVELS);
@@ -448,9 +629,9 @@ static void save_env(void)
     else if (set.nusers < NUSER) slot = set.nusers++;
     else slot = NUSER - 1;
     set.user[slot] = set.cur;
-    set.algo = (uint8_t)(NUM_ENVS + slot);
     char s[16];
-    env_label(set.algo, s);
+    env_label((int)(NUM_ENVS + slot), s);
+    if (!J.on) set.algo = (uint8_t)(NUM_ENVS + slot);   /* (a journey goes on; what was here is kept as a user's) */
     set_dirty = 0;
     autosave_at = 0;
     store_ok = plat_store_save(OBJ_SETTINGS, &set, sizeof set) == 0;
@@ -505,8 +686,8 @@ static void input(void)
     if (down >> B_REC & 1u) randomise();
     if (down >> B_SAVE & 1u) save_env();
     if (down >> B_PLAY & 1u) play_toggle();
-    if (down >> B_OCTDN & 1u) weather_type_step(-1);
-    if (down >> B_OCTUP & 1u) weather_type_step(1);
+    if (down >> B_OCTDN & 1u) { if (J.on) j_hold(); else weather_type_step(-1); }
+    if (down >> B_OCTUP & 1u) { if (J.on) j_travel_on(); else weather_type_step(1); }
     for (int l = 0; l < NUM_LAYERS; l++)          /* the first four white keys: one event from each layer */
         if ((keys & ~ui.keys) >> WK[l] & 1u) eng.oneshot[l] = 1;
 
@@ -901,7 +1082,7 @@ static void draw_panel(void)
             if (k == 0) vtxt[k][0] = 0; else macro_text(k, vtxt[k]);
         } else {
             lab[k] = LAYER_NAME[k]; col[k] = LAYER_C[k];
-            val[k] = ui.panel == PANEL_DENS ? set.cur.dens[k] : set.cur.level[k];
+            val[k] = ui.panel == PANEL_DENS ? set.cur.dens[k] : J.on ? (int)J.mix[k] : set.cur.level[k];
             int_text(val[k], vtxt[k]);
         }
     }
@@ -980,9 +1161,10 @@ static void draw_view(void)
 
 static void draw_header(void)
 {
-    char name[24], right[24] = "";
+    char name[24], right[24] = "", js[28];
     const char *state = eng.state_name ? eng.state_name : "";
     env_name(name);
+    if (J.on) { j_place_name(name); j_status(js); state = js; }
     text_cat(right, set.playing ? time_name(eng.eff.time) : "STOPPED");
     cv_begin(240, HEAD_H, C_BLACK);
     cv_text(4, 1, &FONT_M, name, C_TXT);
@@ -1000,6 +1182,7 @@ static void speak(void)
     if (ann_on() && ann_where()) {
         char t[120] = "", n[24];
         env_name(n); text_cat(t, n); text_cat(t, ". ");
+        if (J.on) { char js[28]; j_place_name(n); text_cat(t, n); text_cat(t, ". "); j_status(js); text_cat(t, js); text_cat(t, ". "); }
         text_cat(t, weather_name(eng.wset, eng.eff.weather)); text_cat(t, ", "); text_cat(t, time_name(eng.eff.time)); text_cat(t, ". ");
         text_cat(t, "Editing "); text_cat(t, LAYER_NAME[ui.sel]);
         ann_say(t, 0, ANN_NOW);
@@ -1126,6 +1309,7 @@ void app_frame(void)
         if (cpu > 85u) eng.gov -= 0.02f; else if (cpu < 70u) eng.gov += 0.002f;
         eng.gov = eng.gov < 0.3f ? 0.3f : eng.gov > 1.0f ? 1.0f : eng.gov;
     }
+    j_tick(now);
     if (autosave_at && (int32_t)(now - autosave_at) >= 0) {
         autosave_at = 0;
         store_ok = plat_store_save(OBJ_SETTINGS, &set, sizeof set) == 0;
@@ -1134,6 +1318,7 @@ void app_frame(void)
         char key[80] = "", n[24];
         ui.last_head = now;
         env_name(n); text_cat(key, n); text_cat(key, eng.state_name ? eng.state_name : "");
+        if (J.on) { char js[28]; j_place_name(n); text_cat(key, n); j_status(js); text_cat(key, js); }
         text_cat(key, weather_name(eng.wset, eng.eff.weather)); text_cat(key, time_name(eng.eff.time)); text_cat(key, set.playing ? "1" : "0");
         int same = 1; for (int i = 0; i < 80; i++) { if (key[i] != ui.head_key[i]) { same = 0; break; } if (!key[i]) break; }
         if (!same) { for (int i = 0; i < 80; i++) ui.head_key[i] = key[i]; draw_header(); }
@@ -1144,6 +1329,9 @@ void app_frame(void)
 int app_expect(const char *what, int *got)
 {
     if (!strcmp(what, "env")) *got = set.algo;
+    else if (!strcmp(what, "jtravel")) *got = J.on && J.travelling;
+    else if (!strcmp(what, "jheld")) *got = J.on && J.held;
+    else if (!strcmp(what, "jat")) *got = J.on ? J_ROUTE[J.at] : -1;
     else if (!strcmp(what, "sel")) *got = ui.sel;
     else if (!strcmp(what, "nusers")) *got = set.nusers;
     else if (!strcmp(what, "playing")) *got = set.playing;

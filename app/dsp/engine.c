@@ -65,7 +65,12 @@ static void derive(Engine *e) {
         e->eff.weather = clamp01(e->m.weather + (ww * 0.1f + e->wx_slow * 0.65f) * e->ent);
     }
     e->eff.activity = clamp01(e->m.activity + wa * e->ent * 0.4f);
-    e->eff.time = clamp01(e->m.time + wt * e->ent * 0.12f);
+    if (e->cycle >= 0) {   /* the day going round: dawn at 0, day, dusk, night at 0.75, dawn again at 1 */
+        float c = e->cycle + wt * e->ent * 0.09f;
+        c -= fm_floorf(c);
+        for (int i = 0; i < 4; i++) { float d = fm_fabsf(c * 4.0f - i); if (d > 2.0f) d = 4.0f - d; e->tod_w[i] = d < 1 ? 1 - d : 0; }
+        e->eff.time = c <= 0.75f ? c / 0.75f : c < 0.875f ? 1.0f : 0.0f;   /* (its name: night, then dawn) */
+    } else e->eff.time = clamp01(e->m.time + wt * e->ent * 0.12f);
     {   /* blend the two neighbouring weather types */
         float x = e->eff.weather * (nwx - 1); int i = (int)x; if (i >= nwx - 1) i = nwx - 2; float f = x - i;
         const WeatherType *a = &WX[i], *b = &WX[i + 1];
@@ -97,7 +102,7 @@ static void derive(Engine *e) {
         e->shelter = (ap == 1 || ap == 2 || ap == 7) ? 0 : h;
     }
     e->actf = 0.1f + 1.8f * e->eff.activity;
-    for (int i = 0; i < 4; i++) { float d = fm_fabsf(e->eff.time * 3.0f - i); e->tod_w[i] = d < 1 ? 1 - d : 0; }
+    if (e->cycle < 0) for (int i = 0; i < 4; i++) { float d = fm_fabsf(e->eff.time * 3.0f - i); e->tod_w[i] = d < 1 ? 1 - d : 0; }
 }
 
 float src_tod(const Engine *e, const Source *s) {
@@ -178,7 +183,7 @@ void engine_init(Engine *e, uint32_t seed) {
     e->gov = 1.0f;
     for (int i = 0; i < NUM_LAYERS; i++) { e->level[i] = 0.75f; e->dens[i] = 1.0f; e->fade[i] = 1.0f; e->patch[i] = -1; e->want[i] = -1; }
     e->user = (Macros){ weather_value(WX_EARTH, 3), 0.33f, 0.5f, 0.4f };
-    e->m = e->user; e->eff = e->m; e->glide_s = 6.0f;
+    e->m = e->user; e->eff = e->m; e->glide_s = 6.0f; e->cycle = -1; e->swap_out = 0.25f; e->swap_in = 0.4f;
     e->master_fade = 1.0f; e->playing = 1;
     e->state_left = 120.0f;
     derive(e);
@@ -465,10 +470,10 @@ static void swaps(Engine *e) {
     for (int l = 0; l < NUM_LAYERS; l++) {
         if (e->want[l] != e->patch[l]) {
             if (e->patch[l] < 0) { apply_patch(e, l, e->want[l]); e->fade[l] = 0; continue; }
-            e->fade[l] -= BLOCK_S / 0.25f;
+            e->fade[l] -= BLOCK_S / e->swap_out;
             if (e->fade[l] <= 0) { e->fade[l] = 0; apply_patch(e, l, e->want[l]); }
         } else if (e->fade[l] < 1.0f) {
-            e->fade[l] += BLOCK_S / 0.4f; if (e->fade[l] > 1.0f) e->fade[l] = 1.0f;
+            e->fade[l] += BLOCK_S / e->swap_in; if (e->fade[l] > 1.0f) e->fade[l] = 1.0f;
         }
     }
 }
