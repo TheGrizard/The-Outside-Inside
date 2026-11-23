@@ -1072,7 +1072,7 @@ static const char *list_env(int pos, int arg)
 }
 
 /* the knobs' panel: four columns, one a knob, left to right as the knobs are */
-#define PANEL_Y (VIEW_H - 92)
+#define PANEL_Y (VIEW_H - 104)
 static void draw_panel(void)
 {
     const char *lab[4]; uint16_t col[4]; int val[4]; char vtxt[4][12]; const char *title = 0; char big[24] = "";
@@ -1089,13 +1089,17 @@ static void draw_panel(void)
     }
     if (ui.panel == PANEL_MACROS) { title = "WEATHER"; macro_text(0, big); }
     else if (ui.panel == PANEL_DENS) { title = "DENSITY"; }
-    /* labels: centred on their columns, nudged apart where a long one would touch its neighbour */
-    int lx[4], lw[4];
+    /* labels: centred on their columns; where whole words would touch (LANDSCAPE is wider than its column), on two
+     * lines, every other one lower, so each has twice the room */
+    int lx[4], lw[4], ly[4], stagger = 0;
     for (int k = 0; k < 4; k++) { lw[k] = text_w(&FONT_S, lab[k]); lx[k] = 30 + 60 * k - lw[k] / 2; }
-    if (lx[0] < 2) lx[0] = 2;
-    for (int k = 1; k < 4; k++) if (lx[k] < lx[k - 1] + lw[k - 1] + 2) lx[k] = lx[k - 1] + lw[k - 1] + 2;
-    if (lx[3] + lw[3] > 240) lx[3] = 240 - lw[3];
-    for (int k = 2; k >= 0; k--) if (lx[k] + lw[k] + 2 > lx[k + 1]) lx[k] = lx[k + 1] - 2 - lw[k];
+    for (int k = 0; k < 3; k++) if (lx[k] + lw[k] + 3 > lx[k + 1]) stagger = 1;
+    if (lx[0] < 1 || lx[3] + lw[3] > 239) stagger = 1;
+    for (int k = 0; k < 4; k++) {
+        if (lx[k] < 1) lx[k] = 1;
+        if (lx[k] + lw[k] > 239) lx[k] = 239 - lw[k];
+        ly[k] = PANEL_Y + 3 + (stagger && (k & 1) ? 15 : 0);
+    }
 
     if (title) {                         /* what the knobs are doing now, large, above the panel */
         int w = text_w(&FONT_M, big[0] ? big : title) + 24;
@@ -1105,9 +1109,9 @@ static void draw_panel(void)
     cv_rect(0, PANEL_Y, 240, VIEW_H - PANEL_Y, C_BLACK);
     cv_rect(0, PANEL_Y, 240, 1, C_RULE);
     for (int k = 0; k < 4; k++) {
-        int cx = 30 + 60 * k, top = PANEL_Y + 24, h = 44;
+        int cx = 30 + 60 * k, top = PANEL_Y + 36, h = 42;
         if (ui.panel != PANEL_MACROS && k == ui.sel) cv_rect(60 * k + 1, PANEL_Y + 1, 58, VIEW_H - PANEL_Y - 1, RGB(22, 22, 22));
-        cv_text(lx[k], PANEL_Y + 4, &FONT_S, lab[k], col[k]);
+        cv_text(lx[k], ly[k], &FONT_S, lab[k], col[k]);
         cv_rect(cx - 8, top, 16, h, RGB(34, 34, 34));                        /* the bar's well */
         if (ui.panel == PANEL_LEVELS) {                                     /* the sound's level now */
             int m = (int)(eng.meter[k] * h);

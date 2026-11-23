@@ -7,6 +7,7 @@ usb_manufacturer = "The Outside Inside"
 usb_product = "The Outside Inside FM-1"
 o2 = ["dsp/generators.c", "dsp/engine.c", "dsp/patches.c"]   # the sound engine, compiled at -O2
 words = "words.tsv"
+gen = ["tools/dejavu_font.py {gen}"]   # the screen in DejaVu Sans (over fm1-base's font header)
 ble = false                    # no Bluetooth: its RAM goes to the reverb
 cpu2 = true                    # the second core renders two of the layers (app_render)
 cpu2_fallback = true           # if it fails, carry on with one core instead of restarting
