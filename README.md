@@ -38,6 +38,12 @@ through that world's:
   thunderstorm, windy
 - Space: ice dust, magnetic storm, particle rain, solar flare, solar wind, still void
 - the alien world: crystal fog, howling gale, ion drizzle, ion rain, ion storm, singing wind, still air
+- the Arctic (it never rains): blizzard, diamond dust, gale, ice fog, light snow, snow, still cold, windy
+- the desert (no rain, no snow): breeze, dry thunder, heat haze, sandstorm, still air, windy
+- the savanna (no snow): breeze, calm, downpour, heat haze, morning mist, rain, thunder, thunderstorm, windy
+
+(Mountain and Village have all of Earth's.) Meadow starts calm, the Arctic in light snow, the desert in a heat haze,
+the savanna in a breeze.
 
 Space's and the alien world's weather also wanders slowly by itself as ENTROPY rises, over minutes. In heavy rain,
 a storm or a gale the animals go quiet and take cover (not in the jungle, which sings on; frogs love the rain).
@@ -61,15 +67,16 @@ MIDI in: CC 20 to 23 are the layer volumes, CC 24 to 27 the macros, on any chann
 Alien, Arctic, Caves, City, Desert, Forest, Industrial, Jungle, Meadow, Mountain, Ocean, Savanna, Space, Swamp, Village.
 The five newest: **Mountain** (a ridge wind, a buzzard, ravens and choughs, marmots, a far waterfall and rockfalls;
 cowbells and a church tolling in the valley below, a helicopter), **Arctic** (a polar wind and spindrift, the ice
-cracking and groaning, bearded seals' trills, wolves, terns; a research station, a snowmobile), **Desert** (a dry
-wind carrying sand, booming dunes, stones ticking in the heat, larks, a scops owl, jackals; a caravan's bells, a 4x4),
-**Savanna** (a storm wind, the long grass, a lion's roar and grunts, hyenas, hornbills, doves and weavers; a camp's fire
+cracking and groaning, bearded seals trilling under it, matched to a recording of them, wolves, terns; a research
+station, its flag, a snowmobile), **Desert** (mostly stillness, as recorded: a dry wind carrying sand, booming dunes,
+stones ticking in the heat, a ticking insect, a lark's chip now and then, a scops owl, jackals; a caravan's bells, a 4x4),
+**Savanna** (a storm wind, the long grass, a lion's roars and grunts as recorded, hyenas, hornbills, doves and weavers; a camp's fire
 and generator, a jeep) and **Village** (rain on roofs, big trees and the pond, rooks, garden birds, ducks, a cockerel,
-cows and a dog; bells ringing changes, a lawnmower, the village road).
+cows and a dog; the church's bells ringing changes or one tolling, as recorded; a lawnmower, the village road).
 
 ### Journey
 
-JOURNEY, first in the environment list, travels round the Earth's places on its own, about an hour a loop: forest,
+JOURNEY (amber), first in the environment list, travels round the Earth's places on its own, about an hour a loop: forest,
 meadow, city, industrial, ocean, swamp, jungle, caves and back to the forest. It stays six minutes in each,
 then takes a minute and a half to get to the next. On the way the weather turns first, then the other layers one
 at a time (the one loudest where you're going first, the one loudest where you were last), so for a while you hear
@@ -86,11 +93,12 @@ always night) and the places are evened out in loudness: made to play under a li
 
 ### Dream
 
-DREAM, second in the list, travels as the journey does (the same pace, the layers changing one at a time, the day
+DREAM (violet), second in the list, travels as the journey does (the same pace, the layers changing one at a time, the day
 going round, OCT+ and OCT-, K1 to K4, SAVE), but each place is a mix drawn at random from all fifteen: the land from
 one, and the animals, the people and the weather from it or from anywhere else, so an alien plain fills with a
 factory's machines, a cave with a meadow's birds. The weather is the weather layer's world's (Space's and the alien
-world's their own). The screen shows the land, and under it where the life and the people are from. A mix is never
+world's their own). The screen's top line says DREAM (or JOURNEY), and under it the land and where the life and the
+people are from (LAND/LIFE/PEOPLE; a journey: the place, and > NEXT on the way). A mix is never
 heavier on the processor than the heaviest place.
 
 ## Building it

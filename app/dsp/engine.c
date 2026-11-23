@@ -38,9 +38,41 @@ static const WeatherType WX_A[] = {   /* the crystal plains: singing winds and i
     { "ION STORM",      0.8f,  0.4f,  0.9f,  0.8f, 1.0f, 0.8f, 0.1f, 0.35f, 0.0f, 0 },
     { "HOWLING GALE",   1.0f,  0.9f,  0.15f, 0.6f, 0.25f, 0.1f, 0.0f, 0.3f, 0.0f, 0 },
 };
-static const WeatherType *const WXS[WX_SETS] = { WX_E, WX_S, WX_A };
-static const int WXN[WX_SETS] = { sizeof WX_E / sizeof WX_E[0], sizeof WX_S / sizeof WX_S[0], sizeof WX_A / sizeof WX_A[0] };
-int weather_set(int p) { return p == 2 ? WX_SPACE : p == 7 ? WX_ALIEN : WX_EARTH; }
+/* three of Earth's places have weathers of their own: the Arctic never rains, the desert neither rains nor snows
+ * (its storms are sand and dry thunder), the savanna never snows (its rains come in storms) */
+static const WeatherType WX_AR[] = {
+    { "STILL COLD",     0.06f, 0.0f,  0.0f, 0.5f, 0.0f, 0.0f, 0.0f,  1.0f,  0.0f, 0 },
+    { "DIAMOND DUST",   0.05f, 0.0f,  0.0f, 0.5f, 0.0f, 0.0f, 0.05f, 1.0f,  0.25f, 0 },
+    { "ICE FOG",        0.05f, 0.0f,  0.0f, 0.5f, 0.0f, 0.0f, 0.5f,  0.7f,  0.0f, 0 },
+    { "LIGHT SNOW",     0.2f,  0.05f, 0.0f, 0.0f, 0.0f, 0.0f, 0.35f, 0.7f,  0.6f, 0 },
+    { "SNOW",           0.25f, 0.1f,  0.0f, 0.0f, 0.0f, 0.0f, 0.65f, 0.4f,  1.0f, 0 },
+    { "WINDY",          0.85f, 0.4f,  0.0f, 0.5f, 0.0f, 0.0f, 0.0f,  0.6f,  0.0f, 0 },
+    { "GALE",           1.0f,  0.8f,  0.0f, 0.5f, 0.0f, 0.0f, 0.0f,  0.25f, 0.0f, 0 },
+    { "BLIZZARD",       1.0f,  0.9f,  0.0f, 0.0f, 0.0f, 0.0f, 0.55f, 0.1f,  1.0f, 0 },
+};
+static const WeatherType WX_D[] = {
+    { "STILL AIR",      0.05f, 0.0f,  0.0f, 0.5f, 0.0f, 0.0f, 0.0f,  1.0f,  0.0f, 0 },
+    { "HEAT HAZE",      0.12f, 0.0f,  0.0f, 0.5f, 0.0f, 0.0f, 0.1f,  0.6f,  0.0f, 0 },
+    { "BREEZE",         0.45f, 0.1f,  0.0f, 0.5f, 0.0f, 0.0f, 0.0f,  1.0f,  0.0f, 0 },
+    { "WINDY",          0.8f,  0.35f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f,  0.6f,  0.0f, 0 },
+    { "DRY THUNDER",    0.55f, 0.2f,  0.0f, 0.5f, 0.9f, 0.4f, 0.0f,  0.4f,  0.0f, 0 },
+    { "SANDSTORM",      1.0f,  0.7f,  0.0f, 0.5f, 0.0f, 0.0f, 0.35f, 0.15f, 0.0f, 0 },
+};
+static const WeatherType WX_SV[] = {
+    { "CALM",           0.08f, 0.0f,  0.0f,  0.5f, 0.0f,  0.0f, 0.0f,  1.0f,  0.0f, 0 },
+    { "MORNING MIST",   0.05f, 0.0f,  0.0f,  0.5f, 0.0f,  0.0f, 0.25f, 0.9f,  0.0f, 0 },
+    { "HEAT HAZE",      0.12f, 0.0f,  0.0f,  0.5f, 0.0f,  0.0f, 0.1f,  0.6f,  0.0f, 0 },
+    { "BREEZE",         0.45f, 0.1f,  0.0f,  0.5f, 0.0f,  0.0f, 0.0f,  1.0f,  0.0f, 0 },
+    { "RAIN",           0.4f,  0.1f,  0.7f,  0.8f, 0.0f,  0.0f, 0.1f,  0.45f, 0.0f, 0 },
+    { "DOWNPOUR",       0.5f,  0.15f, 1.0f,  1.0f, 0.05f, 0.0f, 0.15f, 0.2f,  0.0f, 0 },
+    { "THUNDERSTORM",   0.8f,  0.35f, 0.9f,  0.8f, 1.0f,  0.8f, 0.1f,  0.12f, 0.0f, 0 },
+    { "THUNDER",        0.55f, 0.2f,  0.0f,  0.6f, 1.0f,  0.55f, 0.0f, 0.5f,  0.0f, 1 },
+    { "WINDY",          0.85f, 0.4f,  0.0f,  0.5f, 0.0f,  0.0f, 0.0f,  0.6f,  0.0f, 0 },
+};
+static const WeatherType *const WXS[WX_SETS] = { WX_E, WX_S, WX_A, WX_AR, WX_D, WX_SV };
+static const int WXN[WX_SETS] = { sizeof WX_E / sizeof WX_E[0], sizeof WX_S / sizeof WX_S[0], sizeof WX_A / sizeof WX_A[0],
+                                  sizeof WX_AR / sizeof WX_AR[0], sizeof WX_D / sizeof WX_D[0], sizeof WX_SV / sizeof WX_SV[0] };
+int weather_set(int p) { return p == 2 ? WX_SPACE : p == 7 ? WX_ALIEN : p == 11 ? WX_ARCTIC : p == 12 ? WX_DESERT : p == 13 ? WX_SAVANNA : WX_EARTH; }
 int weather_count(int set) { return WXN[set < 0 || set >= WX_SETS ? 0 : set]; }
 float weather_value(int set, int type) { return (float)type / (weather_count(set) - 1); }
 const char *weather_name(int set, float w) {
@@ -58,7 +90,10 @@ static void derive(Engine *e) {
     int set = e->wset = weather_set(e->patch[L_WEATHER]), nwx = WXN[set];
     const WeatherType *WX = WXS[set];
     e->eff = e->m;
-    if (set == WX_EARTH) e->eff.weather = clamp01(e->m.weather + ww * e->ent * 0.315f);   /* (about three types either way) */
+    if (set != WX_SPACE && set != WX_ALIEN) {   /* about three types either way (two in the smaller sets) */
+        float span = 0.315f * 10.0f / (nwx - 1); if (span > 0.4f) span = 0.4f;
+        e->eff.weather = clamp01(e->m.weather + ww * e->ent * span);
+    }
     else {   /* Space, the alien world: their weather wanders slowly through the whole set, a new aim every few minutes */
         if ((e->wx_left -= BLOCK_S * (0.3f + e->ent)) <= 0) { e->wx_aim = rng_bi(&e->rng); e->wx_left = rng_range(&e->rng, 60.0f, 200.0f); }
         e->wx_slow += (e->wx_aim - e->wx_slow) * (BLOCK_S / 45.0f);
@@ -451,7 +486,7 @@ static void conductor(Engine *e) {
         if (pl) {
             const StateDef *st = &pl->states[e->state];
             float k = e->ent * 2.0f > 1.0f ? 1.0f : e->ent * 2.0f;
-            target.weather = clamp01(target.weather + st->dw * k * (e->wset == WX_EARTH ? 0.9f : 1.0f));   /* (Earth's offsets were set in types) */
+            target.weather = clamp01(target.weather + st->dw * k * (e->wset == WX_EARTH ? 0.9f : 1.0f));   /* (Earth's offsets were set in types; the others' in the knob's travel) */
             target.activity = clamp01(target.activity + st->da * k);
             e->state_name = st->name;
         }

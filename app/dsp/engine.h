@@ -20,7 +20,7 @@ enum { L_WEATHER, L_ANIMALS, L_LANDSCAPE, L_HUMANS };
    ENTROPY  how much the scene varies: 0 stays fixed, 1 wanders (weather drifts, states change, songs vary) */
 typedef struct { float weather, time, activity, entropy; } Macros;
 
-enum { WX_EARTH, WX_SPACE, WX_ALIEN, WX_SETS };
+enum { WX_EARTH, WX_SPACE, WX_ALIEN, WX_ARCTIC, WX_DESERT, WX_SAVANNA, WX_SETS };
 #define WEATHER_MAX 11                   /* the most types a set has */
 int weather_set(int weather_patch);      /* which set a weather preset's world has (-1: Earth's) */
 int weather_count(int set);

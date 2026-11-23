@@ -1,0 +1,41 @@
+# the new places' own weathers: the desert never rains or snows; stepping through all of its weathers, and the Arctic's
+expect env 4
+turn ALGO -1
+wait 300
+expect env 12
+expect mac0 20
+press HOME
+turn K1 1
+wait 200
+turn K1 1
+wait 200
+turn K1 1
+wait 200
+turn K1 1
+wait 200
+turn K1 1
+wait 200
+turn K1 1
+wait 200
+shot desert_weathers.png
+release HOME
+turn ALGO -3
+wait 300
+expect env 11
+expect mac0 43
+turn ALGO -2
+wait 300
+expect env 251
+wait 5000
+shot dream_header.png
+turn ALGO -1
+wait 300
+expect env 250
+wait 5000
+shot journey_header.png
+turn ALGO -1
+wait 300
+shot envlist_colours.png
+turn ALGO 2
+wait 300
+shot envlist_colours.png

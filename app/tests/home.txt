@@ -92,10 +92,10 @@ press HOME
 turn K1 1
 wait 200
 shot space_weather.png
-expect mac0 100
+expect mac0 0
 turn K1 -1
 wait 200
-expect mac0 20
+expect mac0 40
 release HOME
 turn ALGO 2
 wait 5000

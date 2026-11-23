@@ -48,6 +48,8 @@ static const char *const MACRO_NAME[4] = { "WEATHER", "TIME", "ACTIVITY", "ENTRO
 #define C_H RGB(255, 111, 174)
 static const uint16_t LAYER_C[NUM_LAYERS] = { C_W, C_A, C_L, C_H };
 #define C_TXT RGB(230, 230, 230)
+#define C_JOURNEY RGB(255, 178, 70)      /* JOURNEY's amber */
+#define C_DREAM RGB(196, 146, 255)       /* DREAM's violet */
 #define C_SUB RGB(168, 168, 168)
 #define C_RULE RGB(38, 38, 38)
 #define C_BACK RGB(60, 60, 60)
@@ -402,7 +404,7 @@ static void select_layer(int l) { ui.sel = (l % NUM_LAYERS + NUM_LAYERS) % NUM_L
 #define J_DAY 3600.0f                            /* a day an hour: a loop of the eight, to the minute */
 static const uint8_t J_ROUTE[] = { 4, 9, 0, 8, 6, 5, 1, 3 };   /* FOREST MEADOW CITY INDUSTRIAL OCEAN SWAMP JUNGLE CAVES */
 #define J_N ((int)sizeof J_ROUTE)
-static const uint8_t J_WX[NUM_ENVS][5] = {     /* the weathers that suit each place (Earth's: 0 SNOW .. 10 WINDY) */
+static const uint8_t J_WX[NUM_ENVS][5] = {     /* the weathers that suit each place (its weather set's: Earth's 0 SNOW .. 10 WINDY) */
     { 4, 5, 3, 10, 2 },   /* CITY: drizzle, rain, breeze, windy, calm */
     { 6, 7, 5, 2, 3 },    /* JUNGLE: downpour, thunderstorm, rain, calm, breeze */
     { 2, 2, 2, 2, 2 },    /* (SPACE) */
@@ -414,9 +416,9 @@ static const uint8_t J_WX[NUM_ENVS][5] = {     /* the weathers that suit each pl
     { 4, 1, 10, 2, 5 },   /* INDUSTRIAL: drizzle, fog, windy, calm, rain */
     { 2, 3, 2, 8, 4 },    /* MEADOW: calm, breeze, calm, thunder, drizzle */
     { 3, 10, 1, 9, 0 },   /* MOUNTAIN: breeze, windy, fog, gale, snow */
-    { 0, 10, 9, 1, 2 },   /* ARCTIC: snow, windy, gale, fog, calm */
-    { 2, 3, 10, 9, 8 },   /* DESERT: calm, breeze, windy, gale (a sandstorm), thunder (dry) */
-    { 2, 3, 7, 6, 10 },   /* SAVANNA: calm, breeze, thunderstorm, downpour, windy */
+    { 1, 3, 4, 5, 7 },    /* ARCTIC (its own): diamond dust, light snow, snow, windy, blizzard */
+    { 1, 2, 3, 4, 5 },    /* DESERT (its own): heat haze, breeze, windy, dry thunder, sandstorm */
+    { 0, 2, 3, 6, 5 },    /* SAVANNA (its own): calm, heat haze, breeze, thunderstorm, downpour */
     { 3, 4, 5, 1, 2 },    /* VILLAGE: breeze, drizzle, rain, fog, calm */
 };
 static const float J_TRIM[NUM_ENVS] = {         /* each place's level, to even them out (measured: 10^(dB/40)) */
@@ -433,7 +435,7 @@ static const int8_t J_LOUD[NUM_ENVS][NUM_LAYERS] = {
 static const uint8_t J_COST[NUM_ENVS][NUM_LAYERS] = {
     { 18, 1, 7, 40 }, { 19, 8, 28, 4 }, { 20, 3, 9, 23 }, { 8, 1, 44, 6 }, { 23, 2, 32, 11 },
     { 19, 4, 16, 6 }, { 17, 2, 21, 29 }, { 14, 4, 37, 11 }, { 18, 1, 18, 59 }, { 16, 19, 9, 9 },
-    { 18, 1, 34, 13 }, { 26, 5, 4, 10 }, { 32, 5, 7, 12 }, { 22, 4, 13, 29 }, { 19, 4, 11, 14 } };
+    { 18, 1, 34, 14 }, { 32, 13, 4, 15 }, { 32, 5, 7, 12 }, { 20, 2, 11, 27 }, { 19, 4, 10, 14 } };
 #define J_COST_MAX 97
 static const float J_SLOT[NUM_LAYERS] = { 12, 34, 56, 78 };   /* when on the way the changes come (s) */
 #define J_DOWN 9.0f                              /* each layer eases down this long before (to J_LOW, never out: the place
@@ -468,11 +470,11 @@ static void j_set_off(const uint8_t to[NUM_LAYERS], float wx_to)   /* on the way
         for (int l = 0; l < NUM_LAYERS; l++) { float a = pf[l] / sf, b = pt[l] / st; J.share[l] = J.swapped[l] ? 0 : a > b ? a : b; }
     }
 }
-static float j_weather_for(int env, float not)   /* a weather that suits the place (Earth's), not the one it has now */
+static float j_weather_for(int env, float not)   /* a weather that suits the place (from its own set), not the one it has */
 {
-    int w, tries = 0;
-    do w = J_WX[env][(int)(frand() * 5) % 5]; while (++tries < 6 && weather_value(WX_EARTH, w) == not);
-    return weather_value(WX_EARTH, w);
+    int w, tries = 0, ws = weather_set(env);
+    do w = J_WX[env][(int)(frand() * 5) % 5]; while (++tries < 6 && weather_value(ws, w) == not);
+    return weather_value(ws, w);
 }
 static void j_go(int to)                 /* the journey: on the way to stop `to` of the route */
 {
@@ -501,9 +503,8 @@ static void j_dream(void)
         for (int l = 0; l < NUM_LAYERS; l++) cost += J_COST[d[l]][l];
     } while (cost > J_COST_MAX && ++tries < 40);
     if (cost > J_COST_MAX) for (int l = 0; l < NUM_LAYERS; l++) d[l] = (uint8_t)land;   /* (all from one place, which is within it) */
-    int ws = weather_set(d[L_WEATHER]);
-    float wx = ws == WX_EARTH ? j_weather_for(weather_set(land) == WX_EARTH ? land : d[L_WEATHER] < NUM_ENVS && weather_set(d[L_WEATHER]) == WX_EARTH ? d[L_WEATHER] : 4, J.wx_to)
-                               : weather_value(ws, (int)(frand() * weather_count(ws)) % weather_count(ws));
+    int ws = weather_set(d[L_WEATHER]);   /* the weather layer's own: one that suits it, or any of Space's or the alien world's */
+    float wx = ws != WX_SPACE && ws != WX_ALIEN ? j_weather_for(d[L_WEATHER], J.wx_to) : weather_value(ws, (int)(frand() * weather_count(ws)) % weather_count(ws));
     j_set_off(d, wx);
 }
 static void j_next(void) { if (J.dream) j_dream(); else j_go((J.at + 1) % J_N); }
@@ -522,18 +523,23 @@ static void j_start(int dream)
 }
 static void j_stop(void) { J.on = 0; eng.cycle = -1; eng.swap_out = 0.25f; eng.swap_in = 0.4f; }
 static void j_place_name(char *t) { t[0] = 0; text_cat(t, ENV_NAMES[J.travelling && !J.swapped[L_LANDSCAPE] ? J.from[L_LANDSCAPE] : J.to[L_LANDSCAPE]]); }
-static void j_status(char *t)
+/* the header's second line on a journey or a dream: where it is, as fully as `room` (pixels) allows. A journey: the
+ * place, "> NEXT" on the way; a dream: its land / where its life is from / where its people are from */
+static void j_status(char *t, int room)
 {
-    t[0] = 0;
-    if (J.dream) {                       /* where its life and its people are from */
-        if (J.travelling) text_cat(t, "DRIFTING");
-        else { text_cat(t, ENV_NAMES[J.to[L_ANIMALS]]); text_cat(t, " / "); text_cat(t, ENV_NAMES[J.to[L_HUMANS]]); }
-        if (J.held) text_cat(t, ", HELD");
-        return;
+    char p[16], full[48] = "";
+    j_place_name(p);
+    for (int pass = 0; pass < 3; pass++) {
+        full[0] = 0; text_cat(full, p);
+        if (J.dream) {
+            if (pass < 2) { text_cat(full, "/"); text_cat(full, ENV_NAMES[J.to[L_ANIMALS]]); }
+            if (pass < 1) { text_cat(full, "/"); text_cat(full, ENV_NAMES[J.to[L_HUMANS]]); }
+            if (J.travelling && pass == 2) text_cat(full, " ...");
+        } else if (J.travelling && !J.swapped[L_LANDSCAPE] && pass < 2) { text_cat(full, " > "); text_cat(full, ENV_NAMES[J_ROUTE[J.at]]); }
+        if (J.held && pass < 2) text_cat(full, " (HELD)");
+        if (text_w(&FONT_S, full) <= room) break;
     }
-    if (J.travelling && !J.swapped[L_LANDSCAPE]) { text_cat(t, "ON TO "); text_cat(t, ENV_NAMES[J_ROUTE[J.at]]); }
-    else if (J.travelling) text_cat(t, "ARRIVING");
-    else { text_cat(t, "JOURNEY"); if (J.held) text_cat(t, ", HELD"); }
+    t[0] = 0; text_cat(t, full);
 }
 
 static void j_tick(uint32_t now)
@@ -621,7 +627,10 @@ static void env_load(int algo)
     set.algo = (uint8_t)algo;
     if (algo < NUM_ENVS) {               /* a built-in: its presets, its own volumes, densities as designed */
         for (int l = 0; l < NUM_LAYERS; l++) { set.cur.patch[l] = (uint8_t)algo; set.cur.level[l] = ENV_LEVELS[algo][l]; set.cur.dens[l] = 50; }
-        if (algo == ENV_MEADOW) set.cur.mac[0] = (uint8_t)(weather_value(WX_EARTH, 2) * 100.0f + 0.5f);   /* the meadow starts CALM */
+        static const int8_t START_WX[NUM_ENVS] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, 2, -1, 3, 1, 3, -1 };
+        if (START_WX[algo] >= 0)          /* some places start in their own weather: the meadow CALM, the Arctic LIGHT SNOW,
+                                           * the desert HEAT HAZE, the savanna a BREEZE */
+            set.cur.mac[0] = (uint8_t)(weather_value(weather_set(algo), START_WX[algo]) * 100.0f + 0.5f);
     } else set.cur = set.user[algo - NUM_ENVS];   /* the user's: everything as it was saved */
     changed();
     set_dirty = 0;
@@ -1139,6 +1148,13 @@ static void frame_box(int x, int y, int w, int h, uint16_t c)
 
 /* a list: title, then up to 7 rows around the current one (the preset list, the environment list) */
 #define LIST_ROWS 7
+static const char *list_env(int pos, int arg)
+{
+    static char t[16];
+    (void)arg;
+    env_label(env_at(pos), t);
+    return t;
+}
 static void draw_list(const char *title, const char *sub, uint16_t c, int n, int cur, const char *(*name)(int, int), int arg)
 {
     int first = clamp(cur - LIST_ROWS / 2, 0, n > LIST_ROWS ? n - LIST_ROWS : 0);
@@ -1148,18 +1164,13 @@ static void draw_list(const char *title, const char *sub, uint16_t c, int n, int
     for (int i = 0; i < LIST_ROWS && first + i < n; i++) {
         int y = 32 + i * 21;
         const char *nm = name(first + i, arg);
-        if (first + i == cur) { cv_rect(10, y - 2, 220, 21, c); cv_text(16, y, &FONT_S, nm, C_BLACK); }
-        else cv_text(16, y, &FONT_S, nm, C_SUB);
+        uint16_t rc = c, tc = C_SUB;     /* JOURNEY and DREAM in their own colours */
+        if (name == list_env) { int a = env_at(first + i); if (a == ALGO_JOURNEY) rc = tc = C_JOURNEY; else if (a == ALGO_DREAM) rc = tc = C_DREAM; }
+        if (first + i == cur) { cv_rect(10, y - 2, 220, 21, rc); cv_text(16, y, &FONT_S, nm, C_BLACK); }
+        else cv_text(16, y, &FONT_S, nm, tc);
     }
 }
 static const char *list_patch(int pos, int l) { return PATCHES[l][patch_order[l][pos]].name; }
-static const char *list_env(int pos, int arg)
-{
-    static char t[16];
-    (void)arg;
-    env_label(env_at(pos), t);
-    return t;
-}
 
 /* the knobs' panel: four columns, one a knob, left to right as the knobs are */
 #define PANEL_Y (VIEW_H - 104)
@@ -1256,16 +1267,16 @@ static void draw_view(void)
 
 static void draw_header(void)
 {
-    char name[24], right[24] = "", js[28];
+    char name[24], right[24] = "", js[48];
     const char *state = eng.state_name ? eng.state_name : "";
-    env_name(name);
-    if (J.on) { j_place_name(name); j_status(js); state = js; }
+    const char *w = weather_name(eng.wset, eng.eff.weather);
+    env_name(name);                      /* (on a journey or a dream: JOURNEY or DREAM, in its colour; the place under it) */
+    if (J.on) { j_status(js, 236 - text_w(&FONT_S, w) - 10 - 4); state = js; }
     text_cat(right, set.playing ? time_name(eng.eff.time) : "STOPPED");
     cv_begin(240, HEAD_H, C_BLACK);
-    cv_text(4, 1, &FONT_M, name, C_TXT);
+    cv_text(4, 1, &FONT_M, name, J.on ? (J.dream ? C_DREAM : C_JOURNEY) : C_TXT);
     cv_text(236 - text_w(&FONT_S, right), 5, &FONT_S, right, set.playing ? C_SUB : RGB(255, 90, 78));
-    cv_text(4, 26, &FONT_S, state, C_SUB);
-    const char *w = weather_name(eng.wset, eng.eff.weather);
+    cv_text(4, 26, &FONT_S, state, J.on ? C_TXT : C_SUB);
     cv_text(236 - text_w(&FONT_S, w), 26, &FONT_S, w, C_W);
     cv_rect(0, HEAD_H - 1, 240, 1, C_RULE);
     cv_blit(0, 0);
@@ -1277,7 +1288,7 @@ static void speak(void)
     if (ann_on() && ann_where()) {
         char t[120] = "", n[24];
         env_name(n); text_cat(t, n); text_cat(t, ". ");
-        if (J.on) { char js[28]; j_place_name(n); text_cat(t, n); text_cat(t, ". "); j_status(js); text_cat(t, js); text_cat(t, ". "); }
+        if (J.on) { char js[48]; j_status(js, 1000); text_cat(t, js); text_cat(t, ". "); }
         text_cat(t, weather_name(eng.wset, eng.eff.weather)); text_cat(t, ", "); text_cat(t, time_name(eng.eff.time)); text_cat(t, ". ");
         text_cat(t, "Editing "); text_cat(t, LAYER_NAME[ui.sel]);
         ann_say(t, 0, ANN_NOW);
@@ -1413,7 +1424,7 @@ void app_frame(void)
         char key[80] = "", n[24];
         ui.last_head = now;
         env_name(n); text_cat(key, n); text_cat(key, eng.state_name ? eng.state_name : "");
-        if (J.on) { char js[28]; j_place_name(n); text_cat(key, n); j_status(js); text_cat(key, js); }
+        if (J.on) { char js[48]; j_status(js, 1000); text_cat(key, js); }
         text_cat(key, weather_name(eng.wset, eng.eff.weather)); text_cat(key, time_name(eng.eff.time)); text_cat(key, set.playing ? "1" : "0");
         int same = 1; for (int i = 0; i < 80; i++) { if (key[i] != ui.head_key[i]) { same = 0; break; } if (!key[i]) break; }
         if (!same) { for (int i = 0; i < 80; i++) ui.head_key[i] = key[i]; draw_header(); }

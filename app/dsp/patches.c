@@ -19,6 +19,9 @@ static const Material MAT_RAIL = { 3, { 1, 2.3f, 3.9f }, { 0.06f, 0.04f, 0.03f }
 static const Material MAT_SLAM = { 5, { 1, 1.38f, 1.93f, 2.71f, 3.62f }, { 0.07f, 0.05f, 0.04f, 0.03f, 0.025f }, { 1, 0.8f, 0.6f, 0.45f, 0.3f }, 3.0f, 1400, 35 };
 static const Material MAT_SCRAP = { 6, { 1, 1.41f, 2.13f, 2.87f, 3.91f, 5.3f }, { 0.16f, 0.12f, 0.1f, 0.08f, 0.06f, 0.045f }, { 1, 0.9f, 0.8f, 0.6f, 0.5f, 0.35f }, 2.0f, 3500, 15 };
 static const Material MAT_BEAM = { 4, { 1, 2.756f, 5.404f, 8.933f }, { 0.35f, 0.25f, 0.18f, 0.12f }, { 1, 0.7f, 0.5f, 0.3f }, 1.0f, 2500, 8 };
+/* a church bell (measured from a recording of one tolling): its partials at 0.75, 1, 1.31, 1.53 and 2.04 times the
+ * strike note, and the hum an octave down, ringing for seconds */
+static const Material MAT_CHURCH = { 6, { 0.5f, 0.745f, 1.0f, 1.31f, 1.53f, 2.04f }, { 4.5f, 2.6f, 3.2f, 2.2f, 2.0f, 1.4f }, { 0.45f, 0.5f, 1, 0.6f, 0.7f, 0.6f }, 0.6f, 2000, 4 };
 static const Material MAT_BELL = { 6, { 1, 2.0f, 2.38f, 3.0f, 4.0f, 5.04f }, { 3.0f, 2.2f, 1.8f, 1.4f, 1.0f, 0.7f }, { 1, 0.6f, 0.5f, 0.4f, 0.3f, 0.2f }, 0.3f, 3000 };
 
 static void set_surfaces(Rain *r, const float f[4], const float q[4], const float w[4], const float g[4]) {
@@ -1104,7 +1107,7 @@ static void cowbell_block(Engine *e, Source *s) {
 static void valley_bell_block(Engine *e, Source *s) {
     if (s->user[0] > 0) {
         if ((s->user[1] -= BLK) > 0) return;
-        ring_strike(&s->g.ring, &s->rng, &MAT_BELL, 285.0f, rng_range(&s->rng, 0.5f, 0.7f), 0.5f, 1.2f, 0.35f, 0.93f);
+        ring_strike(&s->g.ring, &s->rng, &MAT_CHURCH, 285.0f, rng_range(&s->rng, 0.5f, 0.7f), 0.5f, 1.2f, 0.35f, 0.93f);
         engine_post(e, L_HUMANS, GL_BEACON, 0.35f, 0.93f, 0, 0, 0);
         s->user[0] -= 1; s->user[1] = 2.4f;
     } else if ((s->user[2] -= BLK) <= 0) { s->user[0] = (float)(3 + rng_int(&s->rng, 10)); s->user[1] = 0; s->user[2] = rng_range(&s->rng, 180.0f, 420.0f); }
@@ -1126,13 +1129,21 @@ static void h_mountain(Engine *e) {
 }
 
 /* --------------------------------------------------------------- ARCTIC: an ice shelf */
-static const Syllable SEAL[] = { { 2400, 350, CURVE_EXP, 8.0f, 0.1f, 22, 0.7f, 0.1f, 0, 0, 3, 0.3f, 0.7f } };   /* a bearded seal's trill, falling for seconds, under the ice */
-static const Species SP_SEAL = { SEAL, 1, { "A" }, 1, 0.1f, 0.1f, 1.0f, 20.0f, 45.0f, 1, 1, 0.45f };
+/* bearded seals under the ice (matched to a hydrophone recording of them): a buzzing trill, its pulses about 95 a
+ * second, high (1.8-2 kHz) for a while, then sweeping down to about 800 Hz in two seconds, rising and falling again;
+ * several at once, every few seconds, never quite still */
+static const Syllable SEAL[] = {
+    { 1850, 1980, CURVE_LIN, 2.4f, 0.1f, 95, 0.9f, 0.1f, 0, 0, 0, 0, 0.55f },    /* the high trill */
+    { 1950, 790, CURVE_EXP, 2.1f, 0.05f, 95, 0.9f, 0.15f, 0, 0, 0, 0, 1.0f },    /* the sweep down */
+    { 820, 1500, CURVE_LIN, 0.5f, 0.1f, 95, 0.9f, 0.1f, 0, 0, 0, 0, 0.6f },     /* back up */
+    { 830, 760, CURVE_LIN, 1.4f, 0.1f, 95, 0.9f, 0.15f, 0, 0, 0, 0, 0.85f },    /* low, held */
+};
+static const Species SP_SEAL = { SEAL, 4, { "AB", "ABD", "ABCB", "BD", "AABD", "BCBD" }, 6, 0.08f, 0.1f, 0.03f, 0.3f, 2.0f, 2, 5, 0.5f };
 static const Syllable WOLF[] = { { 420, 560, CURVE_SWOOP, 3.5f, 0.25f, 0, 0, 0.15f, 0, 0, 5, 0.25f, 1 }, { 580, 380, CURVE_EXP, 2.5f, 0.2f, 0, 0, 0.15f, 0, 0, 5, 0.2f, 0.9f } };
 static const Species SP_WOLF = { WOLF, 2, { "A", "AB", "B" }, 3, 0.12f, 0.1f, 0.8f, 25.0f, 60.0f, 1, 2, 0.5f };
 static const Syllable TERN[] = { { 3400, 2600, CURVE_EXP, 0.35f, 0.15f, 0, 0, 0.3f, 1.0f, 0.8f, 0, 0, 1 } };   /* a harsh "kee-arr" */
 static const Species SP_TERN = { TERN, 1, { "A", "A-A", "AA" }, 3, 0.08f, 0.1f, 0.2f, 5.0f, 14.0f, 1, 2, 0.45f };
-static const Syllable ICE_CRACK = { 3500, 220, CURVE_EXP, 0.22f, 0.02f, 0, 0, 0, 0, 0, 0, 0, 1 };   /* the dispersive "pew" a crack sends through the ice */
+static const Material MAT_ICE = { 4, { 1, 1.7f, 2.9f, 4.4f }, { 0.25f, 0.15f, 0.1f, 0.06f }, { 1, 0.6f, 0.4f, 0.3f }, 2.5f, 4000, 4 };   /* a crack: a sharp snap, a short hard ring */
 
 static void polar_wind(Engine *e, Source *s) { wind_follow(e, s, 0.3f, 0.7f, 0.1f, 0.6f); }
 static void polar_snow(Engine *e, Source *s) { weather_rain(e, &s->g.rain, 2200.0f); }
@@ -1153,12 +1164,14 @@ static void w_arctic(Engine *e) {
 }
 static void a_arctic(Engine *e) {
     static const float tod_t[4] = { 1.0f, 1.0f, 0.8f, 0.2f }, tod_w[4] = { 0.4f, 0.0f, 0.7f, 1.0f };
-    add_phrase(e, "bearded seals", 0.4f, 0.55f, 0.9f, 0.4f, 2, &SP_SEAL, 0, 0, 0, 0, GL_SIGNAL);
+    add_phrase(e, "bearded seals", 0.4f, 0.45f, 0.8f, 0.7f, 5, &SP_SEAL, 0, 0, 0, 0, GL_RING);
     add_phrase(e, "wolves", 0.45f, 0.6f, 0.9f, 0.85f, 3, &SP_WOLF, 0, 0, 0, tod_w, GL_GROWL);
     add_phrase(e, "terns and ravens", 0.4f, 0.3f, 0.85f, 0.4f, 4, &SP_TERN, &SP_RAVEN, &SP_TERN, 0, tod_t, GL_BIRD);
 }
-static void crack_fire(Engine *e, Source *s, float pan, float dist, float x) {
-    (void)e; (void)x; voice_play(&s->g.voice, &ICE_CRACK, rng_range(&s->rng, 0.6f, 1.4f), rng_range(&s->rng, 0.8f, 1.5f), pan, dist, rng_range(&s->rng, 0.5f, 1.0f));
+static void crack_fire(Engine *e, Source *s, float pan, float dist, float x) {   /* a snap, and now and then the boom it makes far off */
+    (void)e; (void)x;
+    ring_strike(&s->g.ring, &s->rng, &MAT_ICE, rng_range(&s->rng, 180, 450), rng_range(&s->rng, 0.5f, 1.0f), 1.0f, 1.0f, pan, dist);
+    if (rng_f(&s->rng) < 0.3f) ring_strike(&s->g.ring, &s->rng, &MAT_STONE, rng_range(&s->rng, 45, 80), rng_range(&s->rng, 0.4f, 0.7f), 0.3f, 3.0f, pan, dist);
 }
 static void crack_block(Engine *e, Source *s) { s->rate = 0.05f + 0.25f * e->eff.activity; }
 /* the ice groans: now and then a long low creak, rising and sinking, for seconds. user[0] time left */
@@ -1172,8 +1185,8 @@ static void groan_block(Engine *e, Source *s) {
     }
 }
 static void l_arctic(Engine *e) {
-    Source *s = engine_add(e, "ice cracks", L_LANDSCAPE, G_VOICE, B_SCATTER);
-    s->g.voice.level = 0.4f; s->dist_lo = 0.2f; s->dist_hi = 0.9f; s->fire = crack_fire; s->block = crack_block; s->glyph = GL_FLASH;
+    Source *s = engine_add(e, "ice cracks", L_LANDSCAPE, G_RING, B_SCATTER);
+    s->g.ring.level = 0.45f; s->dist_lo = 0.2f; s->dist_hi = 0.9f; s->fire = crack_fire; s->block = crack_block; s->glyph = GL_FLASH;
     s = engine_add(e, "ice groans", L_LANDSCAPE, G_HUM, B_BED); s->g.hum.level = 0.5f; s->block = groan_block;
     s = engine_add(e, "ice booms", L_LANDSCAPE, G_RING, B_RARE);
     s->rate = 0.02f; s->cooldown = 25; s->g.ring.level = 0.5f; s->dist_lo = 0.5f; s->dist_hi = 0.9f; s->fire = rockfall_fire; s->block = rockfall_block; s->glyph = GL_ROCK;
@@ -1186,17 +1199,21 @@ static void station_block(Engine *e, Source *s) {   /* the station's generator, 
 static void snowmobile_fire(Engine *e, Source *s, float pan, float dist, float x) {   /* a two-stroke's buzz */
     (void)e; (void)pan; (void)dist; (void)x; s->pb_voice = hum_start(&s->g.hum, rng_range(&s->rng, 120, 150), 1.0f, 2.4f, 1.0f, 0.4f, 3000, 0, 0, 0, 1.5f);
 }
-static void mast_fire(Engine *e, Source *s, float pan, float dist, float x) { (void)e; (void)x; voice_play(&s->g.voice, &TELEMETRY, 1.0f, 1.0f, pan, dist, 0.6f); }
 static void h_arctic(Engine *e) {
     Source *s = engine_add(e, "station generator", L_HUMANS, G_HUM, B_BED); s->g.hum.level = 0.5f; s->block = station_block;
     add_passby(e, "snowmobile", snowmobile_fire, 0.012f, 15, 25, 0.4f, 0.75f, 0.06f, 0.25f, GL_CAR);
-    s = engine_add(e, "radio mast", L_HUMANS, G_VOICE, B_SCATTER);
-    s->rate = 0.02f; s->g.voice.level = 0.3f; s->dist_lo = 0.7f; s->dist_hi = 0.85f; s->fire = mast_fire; s->glyph = GL_BEACON;
+    s = engine_add(e, "station flag", L_HUMANS, G_AIR, B_BED);   /* the flag and its halyard slapping in the wind */
+    s->g.air.colour = 0.8f; s->g.air.cutoff = 3000; s->g.air.hp = 400; s->g.air.gust_link = &e->gust; s->g.air.gust_depth = 1.0f; s->g.air.width = 0.3f; s->g.air.send = 0.2f;
+    s->user[0] = 0.0f; s->user[1] = 0.12f; s->block = rustle_block;
 }
 
 /* --------------------------------------------------------------- DESERT: dunes */
-static const Syllable DESERTLARK[] = { { 2200, 2700, CURVE_LIN, 0.28f, 0.2f, 0, 0, 0.1f, 0, 0, 0, 0, 1 }, { 2900, 2100, CURVE_EXP, 0.45f, 0.15f, 0, 0, 0.1f, 0, 0, 0, 0, 0.9f } };   /* a plaintive "pee-oo" */
-static const Species SP_DESERTLARK = { DESERTLARK, 2, { "AB", "A-AB", "B" }, 3, 0.06f, 0.08f, 0.35f, 6.0f, 16.0f, 1, 2, 0.45f };
+/* the desert (matched to a recording of one): mostly stillness; a lark's plaintive "pee-oo" now and then, more often
+ * a single short "chip" (1.1-1.4 kHz), and an insect ticking softly near 4.9 kHz, a tick every half second or so */
+static const Syllable DESERTLARK[] = { { 2200, 2700, CURVE_LIN, 0.28f, 0.2f, 0, 0, 0.1f, 0, 0, 0, 0, 1 }, { 2900, 2100, CURVE_EXP, 0.45f, 0.15f, 0, 0, 0.1f, 0, 0, 0, 0, 0.9f },
+                                       { 1100, 1380, CURVE_LIN, 0.12f, 0.2f, 0, 0, 0.2f, 0, 0, 0, 0, 0.9f } };
+static const Species SP_DESERTLARK = { DESERTLARK, 3, { "C", "C-C", "AB", "C", "A-AB" }, 5, 0.06f, 0.08f, 0.35f, 15.0f, 40.0f, 1, 1, 0.4f };
+static const Syllable DESERT_TICK = { 4900, 4850, CURVE_LIN, 0.035f, 0.2f, 0, 0, 0, 0, 0, 0, 0, 0.25f };
 static const Syllable SCOPS[] = { { 1250, 1200, CURVE_LIN, 0.12f, 0.1f, 0, 0, 0.05f, 0, 0, 0, 0, 1 } };   /* a scops owl: one soft "tyoo", every few seconds */
 static const Species SP_SCOPS = { SCOPS, 1, { "AAAA", "AAAAAA" }, 2, 0.02f, 0.05f, 2.4f, 4.0f, 12.0f, 2, 4, 0.5f };
 static const Syllable JACKAL[] = { { 700, 1300, CURVE_SWOOP, 0.6f, 0.1f, 0, 0, 0.2f, 0, 0, 7, 0.4f, 1 }, { 1200, 800, CURVE_EXP, 0.35f, 0.1f, 0, 0, 0.2f, 0, 0, 7, 0.3f, 0.8f } };
@@ -1221,11 +1238,11 @@ static void w_desert(Engine *e) {
 }
 static void a_desert(Engine *e) {
     static const float tod_d[4] = { 1.4f, 0.8f, 1.0f, 0.0f }, tod_c[4] = { 0.2f, 1.0f, 0.5f, 0.0f }, tod_j[4] = { 0.3f, 0.0f, 1.0f, 0.8f };
-    add_phrase(e, "desert larks and ravens", 0.4f, 0.3f, 0.85f, 0.3f, 4, &SP_DESERTLARK, &SP_RAVEN, &SP_DESERTLARK, 0, tod_d, GL_BIRD);
-    add_chorus(e, L_ANIMALS, "cicadas", &CICADA, 0.25f, 2.5f, 5.0f, 0.2f, 5, 0.85f, 1.15f, 0.3f, 0.8f, tod_c, GL_DOT);
+    add_phrase(e, "larks and ravens", 0.38f, 0.35f, 0.85f, 0.2f, 3, &SP_DESERTLARK, &SP_DESERTLARK, &SP_RAVEN, 0, tod_d, GL_BIRD);
+    add_chorus(e, L_ANIMALS, "ticking insect", &DESERT_TICK, 0.2f, 0.35f, 0.65f, 0.1f, 2, 0.98f, 1.02f, 0.3f, 0.6f, tod_c, GL_DOT);
     add_phrase(e, "scops owl", 0.4f, 0.4f, 0.75f, 0.0f, 1, &SP_SCOPS, 0, 0, 0, TOD_OWL, GL_BIGBIRD);
     add_phrase(e, "jackals", 0.4f, 0.7f, 0.95f, 0.9f, 3, &SP_JACKAL, 0, 0, 0, tod_j, GL_GROWL);
-    add_chorus(e, L_ANIMALS, "night crickets", &CRICKET, 0.2f, 0.7f, 1.1f, 0.3f, 6, 0.95f, 1.08f, 0.3f, 0.8f, TOD_NIGHT, GL_DOT);
+    add_chorus(e, L_ANIMALS, "night crickets", &CRICKET, 0.16f, 0.8f, 1.3f, 0.3f, 3, 0.95f, 1.08f, 0.4f, 0.85f, TOD_NIGHT, GL_DOT);
 }
 /* a dune booming: a low drone (two notes beating) that swells for tens of seconds as the sand slides. user[0] time left, [1] its length */
 static void dune_block(Engine *e, Source *s) {
@@ -1236,7 +1253,7 @@ static void dune_block(Engine *e, Source *s) {
         if (s->user[0] <= 0) { hum_release(h, 0, 2.0f); hum_release(h, 1, 2.0f); }
         return;
     }
-    if (!h->v[0].on && !h->v[1].on && rng_f(&s->rng) < BLK / 120.0f * (0.3f + e->wind + e->eff.activity)) {
+    if (!h->v[0].on && !h->v[1].on && rng_f(&s->rng) < BLK / 240.0f * (0.3f + e->wind + e->eff.activity)) {
         float f = rng_range(&s->rng, 75, 105), pan = rng_bi(&s->rng) * 0.6f;
         hum_start(h, f, 2.0f, 0.8f, 2.0f, 0.2f, 600, 0, 0, 0, 2.0f); hum_start(h, f * 1.5f, 2.0f, 0.5f, 1.5f, 0.1f, 600, 0, 0, 0, 2.0f);
         for (int k = 0; k < 2; k++) { h->v[k].target = 1e-3f; spatial_set(&h->v[k].sp, pan + (k ? 0.2f : -0.2f), 0.7f); }
@@ -1302,24 +1319,47 @@ static void w_savanna(Engine *e) {
     s->block = plains_rain;
     add_thunder(e, 1.0f, 0, 0);
 }
-/* a lion: a long moaning roar or two, then the grunts, slower to quicker, fading. user[0] grunts left, [1] to the next, [2] the gap, [3] where, [4] how far */
+/* a lion (matched to a recording): two or three long roars (2-3.5 s, rough, barely pitched, brightest near 1 kHz,
+ * pulsing as it breathes), then the grunts (about a second each, a second and a half to two and a half apart), fading.
+ * user[0] calls left, [1] till the next, [2] this call's time left, [3] its length, [4] roars left; ag[0] where */
+static void lion_call(Engine *e, Source *s, int roar) {
+    Hum *h = &s->g.hum;
+    float f = roar ? rng_range(&s->rng, 160, 190) : rng_range(&s->rng, 130, 155);
+    engine_var_begin(e, s);
+    int n = hum_start(h, f, 1.0f, roar ? 3.2f : 2.6f, 1.5f, 0.85f, roar ? 1600.0f : 1300.0f, 0, 0, 0, 0.05f);
+    engine_var_end();
+    if (n != 0) { if (n > 0) hum_release(h, n, 0.05f); return; }
+    h->v[0].rattle = 0.6f; h->v[0].target = 1e-3f; spatial_set(&h->v[0].sp, s->ag[0].pan, s->ag[0].dist);
+    s->user[3] = s->user[2] = roar ? rng_range(&s->rng, 2.3f, 3.5f) : rng_range(&s->rng, 0.8f, 1.1f);
+}
 static void lion_fire(Engine *e, Source *s, float pan, float dist, float x) {
-    (void)e; (void)x;
-    crowd_say(&s->g.crowd, rng_range(&s->rng, 110, 140), rng_range(&s->rng, 1.2f, 1.8f), 500, 700, 900, 1100, pan, dist, 1.0f);
-    s->user[0] = (float)(8 + rng_int(&s->rng, 8)); s->user[1] = rng_range(&s->rng, 2.2f, 3.0f); s->user[2] = 1.3f; s->user[3] = pan; s->user[4] = dist;
+    (void)x;
+    if (s->user[0] > 0) return;
+    s->ag[0].pan = pan; s->ag[0].dist = dist;
+    s->user[4] = (float)(2 + rng_int(&s->rng, 2)); s->user[0] = s->user[4] + (float)(5 + rng_int(&s->rng, 6)); s->user[1] = 0;
 }
 static void lion_block(Engine *e, Source *s) {
+    Hum *h = &s->g.hum;
+    if (s->user[2] > 0) {                /* a call sounding: up fast, pulsing with the breath, down at its end */
+        float u = 1.0f - (s->user[2] -= BLK) / s->user[3], roar = s->user[3] > 1.5f;
+        float env = (u < 0.08f ? u / 0.08f : u > 0.75f ? (1.0f - u) / 0.25f : 1.0f) * (0.75f + 0.25f * sine_c(u * (roar ? 2.5f : 1.0f)));
+        h->v[0].target = 0.5f * env * (0.4f + 0.6f * s->user[0] / 12.0f);
+        h->v[0].pmul = 1.0f - 0.25f * u;
+        if (s->user[2] <= 0) hum_release(h, 0, 0.15f);
+        return;
+    }
     if (s->user[0] <= 0 || (s->user[1] -= BLK) > 0) return;
-    engine_var_begin(e, s);
-    crowd_say(&s->g.crowd, rng_range(&s->rng, 90, 110), rng_range(&s->rng, 0.3f, 0.45f), 450, 550, 800, 900, s->user[3], s->user[4], 0.4f + 0.06f * s->user[0]);
-    engine_var_end();
-    s->user[0] -= 1; s->user[2] *= 0.94f; s->user[1] = s->user[2] < 0.65f ? 0.65f : s->user[2];
+    int roar = s->user[4] > 0;
+    lion_call(e, s, roar);
+    if (roar) s->user[4] -= 1;
+    s->user[0] -= 1;
+    s->user[1] = roar ? rng_range(&s->rng, 1.2f, 2.0f) : rng_range(&s->rng, 1.4f, 2.5f);
 }
 static void a_savanna(Engine *e) {
     static const float tod_b[4] = { 1.4f, 1.0f, 0.8f, 0.0f }, tod_l[4] = { 1.0f, 0.1f, 0.8f, 1.0f }, tod_h[4] = { 0.4f, 0.0f, 0.6f, 1.0f }, tod_c[4] = { 0.3f, 1.0f, 0.6f, 0.1f };
     add_phrase(e, "hornbills, doves, weavers", 0.42f, 0.2f, 0.8f, 0.4f, 6, &SP_HORNBILL, &SP_DOVE, &SP_SPARROW, &SP_DOVE, tod_b, GL_BIRD);
-    Source *s = engine_add(e, "lion", L_ANIMALS, G_CROWD, B_SCATTER);
-    s->rate = 0.006f; s->g.crowd.level = 0.6f; s->dist_lo = 0.65f; s->dist_hi = 0.9f; s->fire = lion_fire; s->block = lion_block; s->glyph = GL_GROWL;
+    Source *s = engine_add(e, "lion", L_ANIMALS, G_HUM, B_SCATTER);
+    s->rate = 0.006f; s->g.hum.level = 0.6f; s->dist_lo = 0.65f; s->dist_hi = 0.9f; s->fire = lion_fire; s->block = lion_block; s->glyph = GL_GROWL;
     memcpy(s->tod, tod_l, sizeof s->tod);
     add_phrase(e, "hyenas", 0.4f, 0.6f, 0.9f, 0.6f, 2, &SP_HYENA, 0, 0, 0, tod_h, GL_GROWL);
     add_chorus(e, L_ANIMALS, "cicadas", &CICADA, 0.22f, 2.5f, 5.0f, 0.2f, 5, 0.85f, 1.15f, 0.3f, 0.8f, tod_c, GL_DOT);
@@ -1396,22 +1436,30 @@ static void l_village(Engine *e) {
     { Water *w = &s->g.water; w->rate = 25; w->dmin = 2.0f; w->dmax = 7.0f; w->gamma = 2.4f; w->level = 0.22f; w->rise = 0.04f;
       w->pan_lo = 0.2f; w->pan_hi = 0.6f; w->dist_lo = 0.3f; w->dist_hi = 0.5f; w->rush = 0.1f; w->rush_cut = 900; }
 }
-/* the church's six bells ringing changes: rounds, then the plain hunt (pairs swapping, row by row) and back to
- * rounds, a few minutes of it now and then; the clock striking in between. user[0] rows left, [1] place in the
- * row, [2] to the next bell, [3] till the next peal, [4] which swaps this row; ag[k].pitch the row's order */
+/* the church's six bells: now and then a few minutes of changes (rounds, then the plain hunt, pairs swapping row by
+ * row, and back to rounds), or one bell tolling, a stroke every two seconds (as recorded). user[0] rows (or strokes)
+ * left, [1] place in the row, [2] to the next bell, [3] till the next, [4] which swaps this row; ag[k].pitch the
+ * row's order; ag[7].pitch 1 when tolling */
 static const float BELL6[6] = { 1.0f, 0.889f, 0.8f, 0.75f, 0.667f, 0.6f };   /* a major scale, down from the treble */
 static void ringing_block(Engine *e, Source *s) {
     if (s->user[0] <= 0) {
         if ((s->user[3] -= BLK) > 0) return;
         for (int k = 0; k < 6; k++) s->ag[k].pitch = (float)k;
-        s->user[0] = (float)(30 + rng_int(&s->rng, 40)); s->user[1] = 0; s->user[2] = 0; s->user[4] = 0;
+        s->ag[7].pitch = rng_f(&s->rng) < 0.5f;
+        s->user[0] = s->ag[7].pitch > 0 ? (float)(12 + rng_int(&s->rng, 20)) : (float)(30 + rng_int(&s->rng, 40));
+        s->user[1] = 0; s->user[2] = 0; s->user[4] = 0;
         s->user[3] = rng_range(&s->rng, 240.0f, 600.0f);
         engine_post(e, L_HUMANS, GL_BEACON, -0.3f, 0.7f, 0, 0, 0);
         return;
     }
     if ((s->user[2] -= BLK) > 0) return;
+    if (s->ag[7].pitch > 0) {            /* tolling: the tenor, every two seconds */
+        ring_strike(&s->g.ring, &s->rng, &MAT_CHURCH, 592.0f * BELL6[5] / BELL6[2], rng_range(&s->rng, 0.5f, 0.6f), 0.55f, 1.0f, -0.2f, 0.7f);
+        s->user[2] = 2.0f; s->user[0] -= 1;
+        return;
+    }
     int i = (int)s->user[1], b = (int)s->ag[i].pitch;
-    ring_strike(&s->g.ring, &s->rng, &MAT_BELL, 620.0f * BELL6[b], rng_range(&s->rng, 0.45f, 0.6f), 0.55f, 0.8f, -0.3f + 0.04f * b, 0.7f);
+    ring_strike(&s->g.ring, &s->rng, &MAT_CHURCH, 620.0f * BELL6[b], rng_range(&s->rng, 0.45f, 0.6f), 0.55f, 0.5f, -0.3f + 0.04f * b, 0.7f);
     s->user[2] = i == 5 ? 0.62f : 0.27f;                 /* (the handstroke gap at the row's end) */
     if (++i < 6) { s->user[1] = (float)i; return; }
     s->user[1] = 0; s->user[0] -= 1;
