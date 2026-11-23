@@ -594,7 +594,7 @@ void engine_render(Engine *e, float *outL, float *outR) {
 }
 
 static uint32_t now(Engine *e) { return e->clock ? e->clock() : 0; }
-static void cost_add(Engine *e, int k, uint32_t t0) { if (e->clock) e->cost[k] += ((float)(now(e) - t0) - e->cost[k]) * 0.05f; }
+static void cost_add(Engine *e, int k, uint32_t t0) { if (e->clock) e->cost[k] += ((float)((now(e) - t0) & 0xFFFFFFu) - e->cost[k]) * 0.05f; }   /* (the clock: 24 bits, wrapping) */
 
 void engine_block_begin(Engine *e, int nsub) {
     g_var_core = e->core;

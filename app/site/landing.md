@@ -1,7 +1,7 @@
 # The Outside Inside
 
-Generative field recordings for the M-VAVE FM-1, made entirely by synthesis. Ten places to stand in, from city
-streets and a summer meadow to an alien plain; four layers of sound that never quite repeat; for playing along with, or leaving on in
+Generative field recordings for the M-VAVE FM-1, made entirely by synthesis. Fifteen places to stand in, from city
+streets, a summer meadow and the Arctic ice to an alien plain; four layers of sound that never quite repeat; for playing along with, or leaving on in
 the background.
 
 ![The Outside Inside on the FM-1's screen: a forest, its weather and the time of day](img/screen.png)
@@ -23,7 +23,7 @@ installer: `python3 tools/fm1_install.py {{PKG}}`.
 | K1 to K4 | the volume of WEATHER, ANIMALS, LANDSCAPE, HUMANS (the levels rise up as you turn) |
 | SEL held + K1 to K4 | each layer's density: how often its events happen |
 | HOME held + K1 to K4 | the macros: WEATHER, TIME, ACTIVITY, ENTROPY |
-| ALGORITHM | the environment: JOURNEY (all of them in turn), then alien, caves, city, forest, industrial, jungle, meadow, ocean, space, swamp, then your own |
+| ALGORITHM | the environment: JOURNEY (the Earth's places in turn), DREAM (places mixed at random), then alien, arctic, caves, city, desert, forest, industrial, jungle, meadow, mountain, ocean, savanna, space, swamp, village, then your own |
 | SELECT, or tap SEL | the layer to edit; PRESET changes its preset |
 | REC | randomise the macros |
 | SAVE | save as your own environment (up to 8) |
@@ -37,7 +37,8 @@ light changes and the place moves through its moods. Where a sound appears on th
 
 JOURNEY travels round the Earth's places by itself, about an hour a loop, the layers changing one at a time so the
 places blend into each other, the weather and the time of day moving on: a backdrop for a live set. K1 to K4 set
-its mix; WEATHER and TIME take over when turned.
+its mix; WEATHER and TIME take over when turned. DREAM does the same through places mixed at random: an alien plain
+full of a factory's machines, a cave full of a meadow's birds.
 
 The FM-1 also works as a USB audio interface: record it straight into a computer.
 

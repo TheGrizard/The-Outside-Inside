@@ -1,6 +1,6 @@
 # The Outside Inside
 
-Generative field recordings for the M-VAVE FM-1, made entirely by synthesis: ten places to stand in, four layers of
+Generative field recordings for the M-VAVE FM-1, made entirely by synthesis: fifteen places to stand in, four layers of
 sound that never quite repeat, for playing along with or leaving on in the background.
 
 By [TheGrizard](https://github.com/TheGrizard). Built on [fm1-base](https://github.com/charlesvestal/fm1-base) (MPL-2.0) and felucca-bsp. Works on both FM-1 flash
@@ -17,7 +17,7 @@ the knobs are; each column's bar shows the sound's level as it plays, the white 
 | K1 to K4 | volume of WEATHER, ANIMALS, LANDSCAPE, HUMANS (the columns show while you turn) |
 | SEL held + K1 to K4 | each layer's density: how often its events happen |
 | HOME held | shows what the knobs do now: the macros; turn K1 to K4 to set WEATHER, TIME, ACTIVITY, ENTROPY |
-| ALGORITHM | change environment, from a list: JOURNEY, the ten built in A to Z, then your own (USER 1 ...) |
+| ALGORITHM | change environment, from a list: JOURNEY, DREAM, the fifteen built in A to Z, then your own (USER 1 ...) |
 | SELECT (turn), or tap SEL | choose the layer to edit (its preset list opens) |
 | PRESET | change the chosen layer's preset, A to Z |
 | REC | randomise the macros |
@@ -56,6 +56,17 @@ comes back where you left it.
 
 MIDI in: CC 20 to 23 are the layer volumes, CC 24 to 27 the macros, on any channel.
 
+### The places
+
+Alien, Arctic, Caves, City, Desert, Forest, Industrial, Jungle, Meadow, Mountain, Ocean, Savanna, Space, Swamp, Village.
+The five newest: **Mountain** (a ridge wind, a buzzard, ravens and choughs, marmots, a far waterfall and rockfalls;
+cowbells and a church tolling in the valley below, a helicopter), **Arctic** (a polar wind and spindrift, the ice
+cracking and groaning, bearded seals' trills, wolves, terns; a research station, a snowmobile), **Desert** (a dry
+wind carrying sand, booming dunes, stones ticking in the heat, larks, a scops owl, jackals; a caravan's bells, a 4x4),
+**Savanna** (a storm wind, the long grass, a lion's roar and grunts, hyenas, hornbills, doves and weavers; a camp's fire
+and generator, a jeep) and **Village** (rain on roofs, big trees and the pond, rooks, garden birds, ducks, a cockerel,
+cows and a dog; bells ringing changes, a lawnmower, the village road).
+
 ### Journey
 
 JOURNEY, first in the environment list, travels round the Earth's places on its own, about an hour a loop: forest,
@@ -72,6 +83,15 @@ always night) and the places are evened out in loudness: made to play under a li
   day goes on from there. ACTIVITY and ENTROPY work as ever.
 - **SAVE** keeps the place you're at as one of your own environments; the journey goes on.
 - Turned off on a journey, the FM-1 comes back on a journey, from the place it was in.
+
+### Dream
+
+DREAM, second in the list, travels as the journey does (the same pace, the layers changing one at a time, the day
+going round, OCT+ and OCT-, K1 to K4, SAVE), but each place is a mix drawn at random from all fifteen: the land from
+one, and the animals, the people and the weather from it or from anywhere else, so an alien plain fills with a
+factory's machines, a cave with a meadow's birds. The weather is the weather layer's world's (Space's and the alien
+world's their own). The screen shows the land, and under it where the life and the people are from. A mix is never
+heavier on the processor than the heaviest place.
 
 ## Building it
 
@@ -112,4 +132,5 @@ If an FM-1 ever has a chip neither knows, The Outside Inside still plays, but ta
 
 ## Licence
 
-MPL-2.0. See fm1-base's LICENSING.md for the parts it is built from.
+MPL-2.0. See fm1-base's LICENSING.md for the parts it is built from. The screen is in DejaVu Sans (app/fonts, its
+licence there: the Bitstream Vera licence, DejaVu's changes in the public domain).

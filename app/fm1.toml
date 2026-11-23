@@ -1,5 +1,5 @@
 # The Outside Inside: generative ambience for the M-VAVE FM-1 (tools/build.py)
-# Build: ./build.sh (from the repository's root; it runs base/tools/build.py app with the Terminus pixel font)
+# Build: ./build.sh (from the repository's root; it runs base/tools/build.py app; the screen in DejaVu Sans, tools/dejavu_font.py)
 name = "THE-OUTSIDE-INSIDE"
 title = "The Outside Inside"
 id_prefix = "FM-1_77"          # package identity: dev FM-1_7700, releases FM-1_77XXYYZZ
@@ -20,5 +20,5 @@ author = "TheGrizard"
 repo = "https://github.com/TheGrizard/The-Outside-Inside"
 install = "https://github.com/TheGrizard/The-Outside-Inside/releases/latest"
 screenshot = "docs/screen.png"
-description = "The Outside Inside plays an endless, never-repeating stereo field recording of ten places, from city streets and a summer meadow to an alien plain, all synthesised. Four layers (weather, animals, landscape, humans), four macros (weather, time, activity, entropy), patches you can mix into your own environments, and an animated scene on the screen."
+description = "The Outside Inside plays an endless, never-repeating stereo field recording of fifteen places, from city streets, a summer meadow and the Arctic ice to an alien plain, all synthesised. Four layers (weather, animals, landscape, humans), four macros (weather, time, activity, entropy), patches you can mix into your own environments, and an animated scene on the screen."
 tags = ["ambient", "generative", "synth"]

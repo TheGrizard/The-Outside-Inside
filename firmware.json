@@ -5,7 +5,7 @@
   "author": "TheGrizard",
   "license": "MPL-2.0",
   "tagline": "generative field recordings, made entirely by synthesis",
-  "description": "The Outside Inside plays an endless, never-repeating stereo field recording of ten places, from city streets and a summer meadow to an alien plain, all synthesised. Four layers (weather, animals, landscape, humans), four macros (weather, time, activity, entropy), patches you can mix into your own environments, and an animated scene on the screen.",
+  "description": "The Outside Inside plays an endless, never-repeating stereo field recording of fifteen places, from city streets, a summer meadow and the Arctic ice to an alien plain, all synthesised. Four layers (weather, animals, landscape, humans), four macros (weather, time, activity, entropy), patches you can mix into your own environments, and an animated scene on the screen.",
   "tags": ["ambient", "generative", "synth"],
   "install": "https://github.com/TheGrizard/The-Outside-Inside/releases/latest",
   "source": "https://github.com/TheGrizard/The-Outside-Inside",

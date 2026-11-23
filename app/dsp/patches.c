@@ -1036,8 +1036,419 @@ static void h_meadow(Engine *e) {
     add_jets(e, 0.012f, 0.6f, 0.8f);
 }
 
+/* ======================================================================= five more places
+ * MOUNTAIN, ARCTIC, DESERT, SAVANNA, VILLAGE (10-14). New sounds made from the generators already here: a buzzard's
+ * mew, a raven's croak, marmots' whistles, cowbells, a bell tolling far below, a helicopter (a hum that chugs);
+ * ice cracking (the falling "pew" ice makes), the ice's groan, a bearded seal's trill, wolves; booming dunes,
+ * a scops owl, jackals, a caravan's bells; a lion's roar and its grunts, hyenas, a hornbill, doves, a fire's
+ * crackle; bells ringing changes, rooks, ducks, cows, a dog, a cockerel, a lawnmower. */
+
+/* --------------------------------------------------------------- MOUNTAIN: a pass, the valley far below */
+static const Syllable BUZZARD[] = { { 2600, 1900, CURVE_EXP, 0.75f, 0.12f, 0, 0, 0.3f, 0, 0, 6, 0.15f, 1 } };   /* a mewing "pee-yow" */
+static const Species SP_BUZZARD = { BUZZARD, 1, { "A", "A--A", "A-A" }, 3, 0.06f, 0.1f, 0.6f, 15.0f, 35.0f, 1, 2, 0.55f };
+static const Syllable RAVEN[] = { { 520, 470, CURVE_LIN, 0.22f, 0.15f, 0, 0, 0.5f, 1.0f, 1.8f, 0, 0, 1 },
+                                  { 640, 560, CURVE_EXP, 0.12f, 0.2f, 0, 0, 0.4f, 1.0f, 1.4f, 0, 0, 0.8f } };   /* a hollow "kronk" */
+static const Species SP_RAVEN = { RAVEN, 2, { "A-A", "AB-A", "B-B-A" }, 3, 0.06f, 0.1f, 0.3f, 12.0f, 30.0f, 1, 2, 0.5f };
+static const Syllable CHOUGH[] = { { 3200, 3800, CURVE_SWOOP, 0.14f, 0.2f, 0, 0, 0.1f, 0, 0, 0, 0, 1 } };   /* a high "chree" */
+static const Species SP_CHOUGH = { CHOUGH, 1, { "A-A", "AA-A", "A" }, 3, 0.1f, 0.1f, 0.25f, 6.0f, 15.0f, 1, 3, 0.4f };
+static const Syllable MARMOT[] = { { 2900, 2700, CURVE_LIN, 0.18f, 0.05f, 0, 0, 0, 0, 0, 0, 0, 0.9f } };   /* the alarm: a sharp whistle */
+static const Species SP_MARMOT = { MARMOT, 1, { "A", "A--A", "A--A--A" }, 3, 0.03f, 0.05f, 0.6f, 20.0f, 60.0f, 1, 1, 0.6f };
+static const Syllable EAGLEOWL[] = { { 310, 290, CURVE_LIN, 0.4f, 0.3f, 0, 0, 0.15f, 0, 0, 0, 0, 1 }, { 300, 260, CURVE_EXP, 0.25f, 0.2f, 0, 0, 0.12f, 0, 0, 0, 0, 0.8f } };
+static const Species SP_EAGLEOWL = { EAGLEOWL, 2, { "A-B", "A-B--A-B" }, 2, 0.03f, 0.05f, 0.5f, 8.0f, 20.0f, 1, 1, 0.5f };
+static const Material MAT_COWBELL = { 4, { 1, 1.52f, 2.36f, 3.1f }, { 0.45f, 0.3f, 0.2f, 0.12f }, { 1, 0.7f, 0.45f, 0.3f }, 0.8f, 2500, 6 };
+
+static void mountain_wind(Engine *e, Source *s) { wind_follow(e, s, 0.25f, 0.65f, 0.15f, 0.6f); }
+static void mountain_rain(Engine *e, Source *s) { weather_rain(e, &s->g.rain, 2600.0f); }
+static void w_mountain(Engine *e) {
+    Source *s = add_wind(e, "ridge wind", 1.2f, 1, 600, 0.7f, 520, 12, 0.35f); s->block = mountain_wind;
+    s = engine_add(e, "sleet on rock", L_WEATHER, G_RAIN, B_BED);
+    { Rain *r = &s->g.rain; r->level = 0.36f; r->hiss = 0.05f; r->click = 0.1f; r->send = 0.35f; r->width = 1.0f;
+      r->wash = 0.8f; r->wash_white = 0.6f; r->wash_hp = 400; r->wash_lp = 7500; r->tone = 5500; r->var = 0.4f; r->drops = 0.6f;
+      static const float f[4] = { 2600, 4200, 1500, 900 }, q[4] = { 2.5f, 3, 2, 1.5f }, w[4] = { 3, 2, 1, 1 }, g[4] = { 1, 0.9f, 0.8f, 0.6f }; set_surfaces(r, f, q, w, g); }
+    s->block = mountain_rain;
+    add_thunder(e, 1.0f, 0, 0);
+}
+static void a_mountain(Engine *e) {
+    static const float tod_r[4] = { 1.0f, 1.0f, 0.8f, 0.0f }, tod_m[4] = { 0.8f, 1.0f, 0.5f, 0.0f };
+    add_phrase(e, "buzzard", 0.4f, 0.5f, 0.9f, 0.3f, 2, &SP_BUZZARD, 0, 0, 0, tod_r, GL_BIGBIRD);
+    add_phrase(e, "ravens and choughs", 0.4f, 0.3f, 0.85f, 0.5f, 5, &SP_RAVEN, &SP_CHOUGH, &SP_CHOUGH, 0, tod_r, GL_BIRD);
+    add_phrase(e, "marmots", 0.35f, 0.3f, 0.8f, 0.4f, 2, &SP_MARMOT, 0, 0, 0, tod_m, GL_DOT);
+    add_phrase(e, "eagle owl", 0.4f, 0.5f, 0.85f, 0.0f, 1, &SP_EAGLEOWL, 0, 0, 0, TOD_OWL, GL_BIGBIRD);
+}
+static void scree_fire(Engine *e, Source *s, float pan, float dist, float x) {   /* a stone or two, skittering */
+    (void)e; (void)x;
+    roll_start(s, 2 + rng_int(&s->rng, 4), rng_range(&s->rng, 0.07f, 0.14f), rng_range(&s->rng, 900, 1700), pan, dist, rng_range(&s->rng, 0.3f, 0.6f));
+}
+static void scree_block(Engine *e, Source *s) { (void)e; roll_step(s, &MAT_STONE, 0.9f, 0.8f, 0.75f); }
+static void l_mountain(Engine *e) {
+    Source *s = engine_add(e, "far waterfall", L_LANDSCAPE, G_WATER, B_BED);
+    { Water *w = &s->g.water; w->rate = 180; w->dmin = 4; w->dmax = 14; w->gamma = 2.0f; w->level = 0.2f; w->rise = 0.03f;
+      w->pan_lo = -0.9f; w->pan_hi = -0.5f; w->dist_lo = 0.85f; w->dist_hi = 0.95f; w->rush = 1.0f; w->rush_cut = 1300; }
+    s = engine_add(e, "rockfall", L_LANDSCAPE, G_RING, B_RARE);
+    s->rate = 0.015f; s->cooldown = 40; s->g.ring.level = 0.6f; s->dist_lo = 0.5f; s->dist_hi = 0.9f; s->fire = rockfall_fire; s->block = rockfall_block; s->glyph = GL_ROCK;
+    s = engine_add(e, "scree", L_LANDSCAPE, G_RING, B_SCATTER);
+    s->rate = 0.06f; s->g.ring.level = 0.4f; s->dist_lo = 0.2f; s->dist_hi = 0.6f; s->fire = scree_fire; s->block = scree_block; s->glyph = GL_ROCK;
+}
+/* cows grazing below: their bells clonk as they move, a few at a time, unevenly. user[0] clonks left, [1] to the next, [2] the bell, [3] where */
+static void cowbell_fire(Engine *e, Source *s, float pan, float dist, float x) {
+    (void)e; (void)dist; (void)x;
+    s->user[0] = (float)(2 + rng_int(&s->rng, 6)); s->user[1] = 0; s->user[2] = rng_range(&s->rng, 520, 900); s->user[3] = pan;
+}
+static void cowbell_block(Engine *e, Source *s) {
+    (void)e;
+    if (s->user[0] <= 0 || (s->user[1] -= BLK) > 0) return;
+    ring_strike(&s->g.ring, &s->rng, &MAT_COWBELL, s->user[2] * rng_range(&s->rng, 0.99f, 1.01f), rng_range(&s->rng, 0.3f, 0.8f), 0.7f, 1.0f, s->user[3], rng_range(&s->rng, 0.75f, 0.9f));
+    s->user[0] -= 1; s->user[1] = rng_range(&s->rng, 0.25f, 1.1f);
+}
+/* a church far down the valley tolls: a slow run of strikes every few minutes. user[0] strikes left, [1] to the next, [2] till the next run */
+static void valley_bell_block(Engine *e, Source *s) {
+    if (s->user[0] > 0) {
+        if ((s->user[1] -= BLK) > 0) return;
+        ring_strike(&s->g.ring, &s->rng, &MAT_BELL, 285.0f, rng_range(&s->rng, 0.5f, 0.7f), 0.5f, 1.2f, 0.35f, 0.93f);
+        engine_post(e, L_HUMANS, GL_BEACON, 0.35f, 0.93f, 0, 0, 0);
+        s->user[0] -= 1; s->user[1] = 2.4f;
+    } else if ((s->user[2] -= BLK) <= 0) { s->user[0] = (float)(3 + rng_int(&s->rng, 10)); s->user[1] = 0; s->user[2] = rng_range(&s->rng, 180.0f, 420.0f); }
+}
+static void heli_fire(Engine *e, Source *s, float pan, float dist, float x) {   /* the rotor: a hum that chugs */
+    (void)e; (void)pan; (void)dist; (void)x;
+    int n = hum_start(&s->g.hum, rng_range(&s->rng, 70, 90), 1.0f, 1.0f, 0.3f, 0.6f, 1800, 0, 0, 0, 3.0f);
+    s->pb_voice = n;
+    if (n >= 0) { s->g.hum.v[n].chug_rate = rng_range(&s->rng, 17.0f, 22.0f); s->g.hum.v[n].chug_depth = 0.6f; }
+}
+static void h_mountain(Engine *e) {
+    static const float tod_c[4] = { 0.8f, 1.0f, 0.9f, 0.2f };
+    Source *s = engine_add(e, "cowbells", L_HUMANS, G_RING, B_SCATTER);
+    s->rate = 0.12f; s->alive = 1; s->g.ring.level = 0.45f; s->dist_lo = 0.75f; s->dist_hi = 0.9f; s->fire = cowbell_fire; s->block = cowbell_block; s->glyph = GL_CHIME;
+    memcpy(s->tod, tod_c, sizeof s->tod);
+    s = engine_add(e, "valley church", L_HUMANS, G_RING, B_BED); s->g.ring.level = 0.5f; s->block = valley_bell_block; s->user[2] = 20.0f;
+    add_passby(e, "helicopter", heli_fire, 0.008f, 20, 30, 0.6f, 0.85f, 0.05f, 0.28f, GL_PLANE);
+    add_far_noise(e, "valley road", 2.0f, 220, 0.03f, 0.06f);
+}
+
+/* --------------------------------------------------------------- ARCTIC: an ice shelf */
+static const Syllable SEAL[] = { { 2400, 350, CURVE_EXP, 8.0f, 0.1f, 22, 0.7f, 0.1f, 0, 0, 3, 0.3f, 0.7f } };   /* a bearded seal's trill, falling for seconds, under the ice */
+static const Species SP_SEAL = { SEAL, 1, { "A" }, 1, 0.1f, 0.1f, 1.0f, 20.0f, 45.0f, 1, 1, 0.45f };
+static const Syllable WOLF[] = { { 420, 560, CURVE_SWOOP, 3.5f, 0.25f, 0, 0, 0.15f, 0, 0, 5, 0.25f, 1 }, { 580, 380, CURVE_EXP, 2.5f, 0.2f, 0, 0, 0.15f, 0, 0, 5, 0.2f, 0.9f } };
+static const Species SP_WOLF = { WOLF, 2, { "A", "AB", "B" }, 3, 0.12f, 0.1f, 0.8f, 25.0f, 60.0f, 1, 2, 0.5f };
+static const Syllable TERN[] = { { 3400, 2600, CURVE_EXP, 0.35f, 0.15f, 0, 0, 0.3f, 1.0f, 0.8f, 0, 0, 1 } };   /* a harsh "kee-arr" */
+static const Species SP_TERN = { TERN, 1, { "A", "A-A", "AA" }, 3, 0.08f, 0.1f, 0.2f, 5.0f, 14.0f, 1, 2, 0.45f };
+static const Syllable ICE_CRACK = { 3500, 220, CURVE_EXP, 0.22f, 0.02f, 0, 0, 0, 0, 0, 0, 0, 1 };   /* the dispersive "pew" a crack sends through the ice */
+
+static void polar_wind(Engine *e, Source *s) { wind_follow(e, s, 0.3f, 0.7f, 0.1f, 0.6f); }
+static void polar_snow(Engine *e, Source *s) { weather_rain(e, &s->g.rain, 2200.0f); }
+static void spindrift_block(Engine *e, Source *s) {   /* snow blown along the ice: a hiss in the gusts */
+    Air *a = &s->g.air; a->level = 0.05f + 0.35f * e->wind * e->wind + 0.15f * e->snow; a->weather = e->wind;
+}
+static void w_arctic(Engine *e) {
+    Source *s = add_wind(e, "polar wind", 1.4f, 1, 450, 0.6f, 380, 10, 0.3f); s->block = polar_wind;
+    s = engine_add(e, "spindrift", L_WEATHER, G_AIR, B_BED);
+    s->g.air.colour = 0.3f; s->g.air.cutoff = 9000; s->g.air.hp = 3000; s->g.air.gust_link = &e->gust; s->g.air.gust_depth = 1.0f; s->g.air.width = 1.0f; s->g.air.send = 0.2f;
+    s->block = spindrift_block;
+    s = engine_add(e, "snow and sleet", L_WEATHER, G_RAIN, B_BED);
+    { Rain *r = &s->g.rain; r->level = 0.3f; r->hiss = 0.05f; r->click = 0.05f; r->send = 0.25f; r->width = 1.0f;
+      r->wash = 0.7f; r->wash_white = 0.5f; r->wash_hp = 500; r->wash_lp = 6000; r->tone = 5000; r->var = 0.3f; r->drops = 0.4f;
+      static const float f[4] = { 3000, 4500, 1800, 900 }, q[4] = { 2, 2.5f, 2, 1.5f }, w[4] = { 3, 2, 1, 1 }, g[4] = { 1, 0.9f, 0.7f, 0.5f }; set_surfaces(r, f, q, w, g); }
+    s->block = polar_snow;
+    add_thunder(e, 0.7f, 0, 0);
+}
+static void a_arctic(Engine *e) {
+    static const float tod_t[4] = { 1.0f, 1.0f, 0.8f, 0.2f }, tod_w[4] = { 0.4f, 0.0f, 0.7f, 1.0f };
+    add_phrase(e, "bearded seals", 0.4f, 0.55f, 0.9f, 0.4f, 2, &SP_SEAL, 0, 0, 0, 0, GL_SIGNAL);
+    add_phrase(e, "wolves", 0.45f, 0.6f, 0.9f, 0.85f, 3, &SP_WOLF, 0, 0, 0, tod_w, GL_GROWL);
+    add_phrase(e, "terns and ravens", 0.4f, 0.3f, 0.85f, 0.4f, 4, &SP_TERN, &SP_RAVEN, &SP_TERN, 0, tod_t, GL_BIRD);
+}
+static void crack_fire(Engine *e, Source *s, float pan, float dist, float x) {
+    (void)e; (void)x; voice_play(&s->g.voice, &ICE_CRACK, rng_range(&s->rng, 0.6f, 1.4f), rng_range(&s->rng, 0.8f, 1.5f), pan, dist, rng_range(&s->rng, 0.5f, 1.0f));
+}
+static void crack_block(Engine *e, Source *s) { s->rate = 0.05f + 0.25f * e->eff.activity; }
+/* the ice groans: now and then a long low creak, rising and sinking, for seconds. user[0] time left */
+static void groan_block(Engine *e, Source *s) {
+    Hum *h = &s->g.hum;
+    if (s->user[0] > 0) { if ((s->user[0] -= BLK) <= 0) hum_release(h, 0, 1.5f); else h->v[0].pmul = 1.0f + 0.15f * sine_c(s->user[0] * 0.13f); return; }
+    if (rng_f(&s->rng) < BLK / 50.0f * (0.4f + e->eff.activity)) {
+        int n = hum_start(h, rng_range(&s->rng, 45, 80), 1.5f, 2.0f, 0.5f, 0.3f, 500, 0.5f, 1.5f, 0, 1.0f);
+        if (n == 0) { h->v[0].target = 0.25f; spatial_set(&h->v[0].sp, rng_bi(&s->rng) * 0.8f, rng_range(&s->rng, 0.4f, 0.8f)); s->user[0] = rng_range(&s->rng, 3.0f, 7.0f); engine_post(e, L_LANDSCAPE, GL_FLAT, 0, 0.6f, 0, 0, 0); }
+        else if (n > 0) hum_release(h, n, 0.05f);
+    }
+}
+static void l_arctic(Engine *e) {
+    Source *s = engine_add(e, "ice cracks", L_LANDSCAPE, G_VOICE, B_SCATTER);
+    s->g.voice.level = 0.4f; s->dist_lo = 0.2f; s->dist_hi = 0.9f; s->fire = crack_fire; s->block = crack_block; s->glyph = GL_FLASH;
+    s = engine_add(e, "ice groans", L_LANDSCAPE, G_HUM, B_BED); s->g.hum.level = 0.5f; s->block = groan_block;
+    s = engine_add(e, "ice booms", L_LANDSCAPE, G_RING, B_RARE);
+    s->rate = 0.02f; s->cooldown = 25; s->g.ring.level = 0.5f; s->dist_lo = 0.5f; s->dist_hi = 0.9f; s->fire = rockfall_fire; s->block = rockfall_block; s->glyph = GL_ROCK;
+}
+static void station_block(Engine *e, Source *s) {   /* the station's generator, out across the ice */
+    Hum *h = &s->g.hum;
+    if (!h->v[0].on) { hum_start(h, 60, 1.0f, 1.2f, 0.3f, 0.3f, 900, 0, 0, 0, 3.0f); spatial_set(&h->v[0].sp, 0.6f, 0.75f); h->v[0].chug_rate = 15.0f; h->v[0].chug_depth = 0.3f; }
+    h->v[0].target = 0.15f + 0.08f * e->eff.activity;
+}
+static void snowmobile_fire(Engine *e, Source *s, float pan, float dist, float x) {   /* a two-stroke's buzz */
+    (void)e; (void)pan; (void)dist; (void)x; s->pb_voice = hum_start(&s->g.hum, rng_range(&s->rng, 120, 150), 1.0f, 2.4f, 1.0f, 0.4f, 3000, 0, 0, 0, 1.5f);
+}
+static void mast_fire(Engine *e, Source *s, float pan, float dist, float x) { (void)e; (void)x; voice_play(&s->g.voice, &TELEMETRY, 1.0f, 1.0f, pan, dist, 0.6f); }
+static void h_arctic(Engine *e) {
+    Source *s = engine_add(e, "station generator", L_HUMANS, G_HUM, B_BED); s->g.hum.level = 0.5f; s->block = station_block;
+    add_passby(e, "snowmobile", snowmobile_fire, 0.012f, 15, 25, 0.4f, 0.75f, 0.06f, 0.25f, GL_CAR);
+    s = engine_add(e, "radio mast", L_HUMANS, G_VOICE, B_SCATTER);
+    s->rate = 0.02f; s->g.voice.level = 0.3f; s->dist_lo = 0.7f; s->dist_hi = 0.85f; s->fire = mast_fire; s->glyph = GL_BEACON;
+}
+
+/* --------------------------------------------------------------- DESERT: dunes */
+static const Syllable DESERTLARK[] = { { 2200, 2700, CURVE_LIN, 0.28f, 0.2f, 0, 0, 0.1f, 0, 0, 0, 0, 1 }, { 2900, 2100, CURVE_EXP, 0.45f, 0.15f, 0, 0, 0.1f, 0, 0, 0, 0, 0.9f } };   /* a plaintive "pee-oo" */
+static const Species SP_DESERTLARK = { DESERTLARK, 2, { "AB", "A-AB", "B" }, 3, 0.06f, 0.08f, 0.35f, 6.0f, 16.0f, 1, 2, 0.45f };
+static const Syllable SCOPS[] = { { 1250, 1200, CURVE_LIN, 0.12f, 0.1f, 0, 0, 0.05f, 0, 0, 0, 0, 1 } };   /* a scops owl: one soft "tyoo", every few seconds */
+static const Species SP_SCOPS = { SCOPS, 1, { "AAAA", "AAAAAA" }, 2, 0.02f, 0.05f, 2.4f, 4.0f, 12.0f, 2, 4, 0.5f };
+static const Syllable JACKAL[] = { { 700, 1300, CURVE_SWOOP, 0.6f, 0.1f, 0, 0, 0.2f, 0, 0, 7, 0.4f, 1 }, { 1200, 800, CURVE_EXP, 0.35f, 0.1f, 0, 0, 0.2f, 0, 0, 7, 0.3f, 0.8f } };
+static const Species SP_JACKAL = { JACKAL, 2, { "AB-AB-A", "ABAB", "A-AB" }, 3, 0.1f, 0.12f, 0.15f, 30.0f, 90.0f, 1, 2, 0.5f };
+
+static void desert_wind(Engine *e, Source *s) { wind_follow(e, s, 0.15f, 0.65f, 0.05f, 0.4f); }
+static void desert_rain(Engine *e, Source *s) { weather_rain(e, &s->g.rain, 2000.0f); }
+static void sand_block(Engine *e, Source *s) {   /* sand carried on the gusts */
+    Air *a = &s->g.air; a->level = 0.03f + 0.45f * e->wind * e->wind; a->weather = e->wind;
+}
+static void w_desert(Engine *e) {
+    Source *s = add_wind(e, "desert wind", 0.9f, 1, 900, 0.5f, 700, 6, 0.15f); s->block = desert_wind;
+    s = engine_add(e, "blowing sand", L_WEATHER, G_AIR, B_BED);
+    s->g.air.colour = 0.4f; s->g.air.cutoff = 8000; s->g.air.hp = 2500; s->g.air.gust_link = &e->gust; s->g.air.gust_depth = 1.0f; s->g.air.width = 1.0f; s->g.air.send = 0.1f;
+    s->block = sand_block;
+    s = engine_add(e, "rain on sand", L_WEATHER, G_RAIN, B_BED);
+    { Rain *r = &s->g.rain; r->level = 0.35f; r->hiss = 0; r->click = 0.05f; r->send = 0.15f; r->width = 1.0f;
+      r->wash = 0.8f; r->wash_white = 0.3f; r->wash_hp = 200; r->wash_lp = 5000; r->tone = 4000; r->var = 0.4f; r->drops = 0.4f;
+      static const float f[4] = { 1200, 2200, 700, 3200 }, q[4] = { 1.5f, 2, 1.2f, 2 }, w[4] = { 3, 2, 1, 1 }, g[4] = { 1, 0.8f, 0.7f, 0.5f }; set_surfaces(r, f, q, w, g); }
+    s->block = desert_rain;
+    add_thunder(e, 0.8f, 0, 0);
+}
+static void a_desert(Engine *e) {
+    static const float tod_d[4] = { 1.4f, 0.8f, 1.0f, 0.0f }, tod_c[4] = { 0.2f, 1.0f, 0.5f, 0.0f }, tod_j[4] = { 0.3f, 0.0f, 1.0f, 0.8f };
+    add_phrase(e, "desert larks and ravens", 0.4f, 0.3f, 0.85f, 0.3f, 4, &SP_DESERTLARK, &SP_RAVEN, &SP_DESERTLARK, 0, tod_d, GL_BIRD);
+    add_chorus(e, L_ANIMALS, "cicadas", &CICADA, 0.25f, 2.5f, 5.0f, 0.2f, 5, 0.85f, 1.15f, 0.3f, 0.8f, tod_c, GL_DOT);
+    add_phrase(e, "scops owl", 0.4f, 0.4f, 0.75f, 0.0f, 1, &SP_SCOPS, 0, 0, 0, TOD_OWL, GL_BIGBIRD);
+    add_phrase(e, "jackals", 0.4f, 0.7f, 0.95f, 0.9f, 3, &SP_JACKAL, 0, 0, 0, tod_j, GL_GROWL);
+    add_chorus(e, L_ANIMALS, "night crickets", &CRICKET, 0.2f, 0.7f, 1.1f, 0.3f, 6, 0.95f, 1.08f, 0.3f, 0.8f, TOD_NIGHT, GL_DOT);
+}
+/* a dune booming: a low drone (two notes beating) that swells for tens of seconds as the sand slides. user[0] time left, [1] its length */
+static void dune_block(Engine *e, Source *s) {
+    Hum *h = &s->g.hum;
+    if (s->user[0] > 0) {
+        float u = 1.0f - (s->user[0] -= BLK) / s->user[1], env = u < 0.4f ? u / 0.4f : (1.0f - u) / 0.6f;
+        for (int k = 0; k < 2; k++) h->v[k].target = 0.25f * env * env;
+        if (s->user[0] <= 0) { hum_release(h, 0, 2.0f); hum_release(h, 1, 2.0f); }
+        return;
+    }
+    if (!h->v[0].on && !h->v[1].on && rng_f(&s->rng) < BLK / 120.0f * (0.3f + e->wind + e->eff.activity)) {
+        float f = rng_range(&s->rng, 75, 105), pan = rng_bi(&s->rng) * 0.6f;
+        hum_start(h, f, 2.0f, 0.8f, 2.0f, 0.2f, 600, 0, 0, 0, 2.0f); hum_start(h, f * 1.5f, 2.0f, 0.5f, 1.5f, 0.1f, 600, 0, 0, 0, 2.0f);
+        for (int k = 0; k < 2; k++) { h->v[k].target = 1e-3f; spatial_set(&h->v[k].sp, pan + (k ? 0.2f : -0.2f), 0.7f); }
+        s->user[1] = s->user[0] = rng_range(&s->rng, 12.0f, 30.0f);
+        engine_post(e, L_LANDSCAPE, GL_FLAT, pan, 0.7f, 0, 0, 0);
+    }
+}
+static void heat_tick_fire(Engine *e, Source *s, float pan, float dist, float x) {   /* stones ticking in the heat */
+    (void)e; (void)x; ring_strike(&s->g.ring, &s->rng, &MAT_STONE, rng_range(&s->rng, 1500, 3000), rng_range(&s->rng, 0.2f, 0.5f), 1.0f, 0.5f, pan, dist);
+}
+static void l_desert(Engine *e) {
+    static const float tod_h[4] = { 0.4f, 1.0f, 0.6f, 0.1f };
+    add_rustle(e, "sand hiss", 4000, 0.1f, 0.45f);
+    Source *s = engine_add(e, "booming dunes", L_LANDSCAPE, G_HUM, B_BED); s->g.hum.level = 0.5f; s->block = dune_block;
+    s = engine_add(e, "stones in the heat", L_LANDSCAPE, G_RING, B_SCATTER);
+    s->rate = 0.08f; s->alive = 1; s->g.ring.level = 0.3f; s->dist_lo = 0.2f; s->dist_hi = 0.6f; s->fire = heat_tick_fire; s->glyph = GL_DOT; memcpy(s->tod, tod_h, sizeof s->tod);
+}
+/* a caravan going by: its camels' bells, each its own, swinging with the stride, coming near and away over a minute.
+ * user[0] time left, [1] its length, [2] which way; ag[k] a camel: pitch its bell's note, ph to its next ring, tempo its stride */
+static void caravan_block(Engine *e, Source *s) {
+    if (s->user[0] <= 0) {
+        if (rng_f(&s->rng) < BLK / 150.0f * (0.3f + e->eff.activity)) {
+            s->user[1] = s->user[0] = rng_range(&s->rng, 50.0f, 80.0f); s->user[2] = rng_f(&s->rng) < 0.5f ? -1.0f : 1.0f;
+            for (int k = 0; k < 4; k++) { s->ag[k].pitch = rng_range(&s->rng, 1500, 2700); s->ag[k].ph = rng_range(&s->rng, 0, 1.0f); s->ag[k].tempo = rng_range(&s->rng, 0.8f, 1.2f); }
+            engine_post(e, L_HUMANS, GL_CHIME, -s->user[2], 0.8f, 0, 0, 0);
+        }
+        return;
+    }
+    float u = 1.0f - (s->user[0] -= BLK) / s->user[1], x = s->user[2] * (u * 2.0f - 1.0f), dist = 0.45f + 0.45f * x * x;
+    for (int k = 0; k < 4; k++) {
+        if ((s->ag[k].ph -= BLK) > 0) continue;
+        float pan = x * 0.9f - s->user[2] * 0.08f * k;
+        ring_strike(&s->g.ring, &s->rng, &MAT_BELL, s->ag[k].pitch * rng_range(&s->rng, 0.995f, 1.005f), rng_range(&s->rng, 0.25f, 0.5f), 0.8f, 0.25f, pan < -1 ? -1 : pan > 1 ? 1 : pan, dist);
+        s->ag[k].ph = s->ag[k].tempo * rng_range(&s->rng, 0.9f, 1.1f);
+    }
+}
+static void jeep_fire(Engine *e, Source *s, float pan, float dist, float x) {
+    (void)e; (void)pan; (void)dist; (void)x; s->pb_voice = hum_start(&s->g.hum, rng_range(&s->rng, 90, 115), 1.0f, 1.5f, 0.5f, 0.5f, 2200, 0, 0, 0, 2.0f);
+}
+static void h_desert(Engine *e) {
+    Source *s = engine_add(e, "caravan bells", L_HUMANS, G_RING, B_BED); s->g.ring.level = 0.4f; s->block = caravan_block;
+    add_passby(e, "four by four", jeep_fire, 0.01f, 15, 25, 0.6f, 0.85f, 0.05f, 0.25f, GL_CAR);
+    add_far_noise(e, "far highway", 2.0f, 300, 0.02f, 0.05f);
+    add_jets(e, 0.01f, 0.7f, 0.9f);
+}
+
+/* --------------------------------------------------------------- SAVANNA: the plains */
+static const Syllable HYENA[] = { { 420, 1150, CURVE_EXP, 0.9f, 0.2f, 0, 0, 0.25f, 0, 0, 0, 0, 1 } };   /* "whoo-oop", rising */
+static const Species SP_HYENA = { HYENA, 1, { "A-A-A", "A--A", "A-A-A-A" }, 3, 0.1f, 0.1f, 1.5f, 30.0f, 90.0f, 1, 1, 0.5f };
+static const Syllable HORNBILL[] = { { 900, 850, CURVE_LIN, 0.06f, 0.1f, 0, 0, 0.4f, 2.0f, 1.5f, 0, 0, 1 } };   /* a hollow "tok", quickening */
+static const Species SP_HORNBILL = { HORNBILL, 1, { "A---A--A--A-A-AAAA", "A--A--A-A-AAA" }, 2, 0.04f, 0.05f, 0.12f, 10.0f, 25.0f, 1, 1, 0.45f };
+static const Syllable DOVE[] = { { 520, 500, CURVE_LIN, 0.18f, 0.2f, 0, 0, 0.2f, 0, 0, 0, 0, 0.8f }, { 600, 560, CURVE_LIN, 0.3f, 0.2f, 0, 0, 0.2f, 0, 0, 0, 0, 1 }, { 480, 460, CURVE_LIN, 0.22f, 0.2f, 0, 0, 0.2f, 0, 0, 0, 0, 0.8f } };
+static const Species SP_DOVE = { DOVE, 3, { "ABC-ABC-ABC", "ABC-ABC" }, 2, 0.04f, 0.05f, 0.1f, 8.0f, 20.0f, 1, 2, 0.4f };
+
+static void plains_wind(Engine *e, Source *s) { wind_follow(e, s, 0.15f, 0.6f, 0.03f, 0.4f); }
+static void plains_rain(Engine *e, Source *s) { weather_rain(e, &s->g.rain, 3000.0f); }
+static void w_savanna(Engine *e) {
+    Source *s = add_wind(e, "plains wind", 1.0f, 1, 800, 0.6f, 900, 8, 0.2f); s->block = plains_wind;
+    s = engine_add(e, "storm rain", L_WEATHER, G_RAIN, B_BED);
+    { Rain *r = &s->g.rain; r->level = 0.42f; r->hiss = 0; r->click = 0.05f; r->send = 0.3f; r->width = 1.0f;
+      r->wash = 1.0f; r->wash_white = 0.45f; r->wash_hp = 200; r->wash_lp = 6500; r->tone = 4500; r->var = 0.4f; r->drops = 0.6f;
+      static const float f[4] = { 1800, 2800, 900, 500 }, q[4] = { 1.6f, 2, 1.5f, 1.2f }, w[4] = { 3, 2, 1, 1 }, g[4] = { 1, 0.9f, 0.8f, 0.6f }; set_surfaces(r, f, q, w, g); }
+    s->block = plains_rain;
+    add_thunder(e, 1.0f, 0, 0);
+}
+/* a lion: a long moaning roar or two, then the grunts, slower to quicker, fading. user[0] grunts left, [1] to the next, [2] the gap, [3] where, [4] how far */
+static void lion_fire(Engine *e, Source *s, float pan, float dist, float x) {
+    (void)e; (void)x;
+    crowd_say(&s->g.crowd, rng_range(&s->rng, 110, 140), rng_range(&s->rng, 1.2f, 1.8f), 500, 700, 900, 1100, pan, dist, 1.0f);
+    s->user[0] = (float)(8 + rng_int(&s->rng, 8)); s->user[1] = rng_range(&s->rng, 2.2f, 3.0f); s->user[2] = 1.3f; s->user[3] = pan; s->user[4] = dist;
+}
+static void lion_block(Engine *e, Source *s) {
+    if (s->user[0] <= 0 || (s->user[1] -= BLK) > 0) return;
+    engine_var_begin(e, s);
+    crowd_say(&s->g.crowd, rng_range(&s->rng, 90, 110), rng_range(&s->rng, 0.3f, 0.45f), 450, 550, 800, 900, s->user[3], s->user[4], 0.4f + 0.06f * s->user[0]);
+    engine_var_end();
+    s->user[0] -= 1; s->user[2] *= 0.94f; s->user[1] = s->user[2] < 0.65f ? 0.65f : s->user[2];
+}
+static void a_savanna(Engine *e) {
+    static const float tod_b[4] = { 1.4f, 1.0f, 0.8f, 0.0f }, tod_l[4] = { 1.0f, 0.1f, 0.8f, 1.0f }, tod_h[4] = { 0.4f, 0.0f, 0.6f, 1.0f }, tod_c[4] = { 0.3f, 1.0f, 0.6f, 0.1f };
+    add_phrase(e, "hornbills, doves, weavers", 0.42f, 0.2f, 0.8f, 0.4f, 6, &SP_HORNBILL, &SP_DOVE, &SP_SPARROW, &SP_DOVE, tod_b, GL_BIRD);
+    Source *s = engine_add(e, "lion", L_ANIMALS, G_CROWD, B_SCATTER);
+    s->rate = 0.006f; s->g.crowd.level = 0.6f; s->dist_lo = 0.65f; s->dist_hi = 0.9f; s->fire = lion_fire; s->block = lion_block; s->glyph = GL_GROWL;
+    memcpy(s->tod, tod_l, sizeof s->tod);
+    add_phrase(e, "hyenas", 0.4f, 0.6f, 0.9f, 0.6f, 2, &SP_HYENA, 0, 0, 0, tod_h, GL_GROWL);
+    add_chorus(e, L_ANIMALS, "cicadas", &CICADA, 0.22f, 2.5f, 5.0f, 0.2f, 5, 0.85f, 1.15f, 0.3f, 0.8f, tod_c, GL_DOT);
+    add_chorus(e, L_ANIMALS, "night crickets", &CRICKET, 0.22f, 0.7f, 1.1f, 0.3f, 8, 0.95f, 1.08f, 0.3f, 0.8f, TOD_NIGHT, GL_DOT);
+}
+static void l_savanna(Engine *e) {
+    add_rustle(e, "long grass", 2200, 0.2f, 0.5f);
+    add_rustle(e, "acacia", 1300, 0.08f, 0.3f);
+}
+/* the camp's fire: a low roar and its pops and crackles, in the evening and the night */
+static void fire_block(Engine *e, Source *s) {
+    Rain *r = &s->g.rain; float t = src_tod(e, s);
+    r->density = 6.0f + 22.0f * t * (0.6f + 0.6f * e->eff.activity); r->level = 0.25f * t; r->wash_amp = 0;
+}
+static void h_savanna(Engine *e) {
+    static const float tod_f[4] = { 0.3f, 0.15f, 0.9f, 1.0f };
+    Source *s = engine_add(e, "camp generator", L_HUMANS, G_HUM, B_BED); s->g.hum.level = 0.35f; s->block = station_block;
+    s = engine_add(e, "campfire", L_HUMANS, G_RAIN, B_BED);
+    { Rain *r = &s->g.rain; r->level = 0.25f; r->hiss = 0; r->click = 1.0f; r->send = 0.15f; r->width = 0.4f; r->size = 0.2f;
+      r->wash = 0; r->tone = 6000; r->var = 0.8f; r->drops = 0.9f;
+      static const float f[4] = { 2500, 4500, 1200, 6000 }, q[4] = { 3, 3, 2, 3 }, w[4] = { 2, 2, 1, 1 }, g[4] = { 1, 0.8f, 0.6f, 0.5f }; set_surfaces(r, f, q, w, g); }
+    s->block = fire_block; memcpy(s->tod, tod_f, sizeof s->tod);
+    add_passby(e, "safari jeep", jeep_fire, 0.01f, 15, 25, 0.55f, 0.85f, 0.05f, 0.22f, GL_CAR);
+    add_jets(e, 0.008f, 0.75f, 0.9f);
+}
+
+/* --------------------------------------------------------------- VILLAGE: the green, the church, the farm */
+static const Syllable ROOK[] = { { 700, 600, CURVE_LIN, 0.28f, 0.15f, 0, 0, 0.5f, 1.0f, 1.6f, 0, 0, 1 } };
+static const Species SP_ROOK = { ROOK, 1, { "A-A", "AA-A", "A", "A-AA" }, 4, 0.12f, 0.12f, 0.2f, 3.0f, 10.0f, 1, 2, 0.45f };
+static const Syllable QUACK[] = { { 420, 360, CURVE_LIN, 0.16f, 0.1f, 0, 0, 0.3f, 1.0f, 2.2f, 0, 0, 1 } };
+static const Species SP_DUCK = { QUACK, 1, { "AAA-A", "AAAA", "A-AA" }, 3, 0.05f, 0.1f, 0.12f, 8.0f, 25.0f, 1, 2, 0.45f };
+static const Syllable COCKEREL[] = { { 600, 900, CURVE_SWOOP, 0.15f, 0.1f, 0, 0, 0.4f, 1.0f, 1.2f, 0, 0, 0.8f }, { 900, 1000, CURVE_LIN, 0.15f, 0.1f, 0, 0, 0.4f, 1.0f, 1.2f, 0, 0, 0.9f },
+                                     { 1000, 1100, CURVE_LIN, 0.15f, 0.1f, 0, 0, 0.4f, 1.0f, 1.2f, 0, 0, 1 }, { 1100, 700, CURVE_EXP, 0.6f, 0.1f, 0, 0, 0.4f, 1.0f, 1.2f, 6, 0.3f, 1 } };
+static const Species SP_COCKEREL = { COCKEREL, 4, { "ABCD" }, 1, 0.05f, 0.05f, 0.03f, 20.0f, 60.0f, 1, 1, 0.45f };
+
+static void village_breeze(Engine *e, Source *s) { wind_follow(e, s, 0.2f, 0.6f, 0.05f, 0.5f); }
+static void village_rain(Engine *e, Source *s) { weather_rain(e, &s->g.rain, 2400.0f); }
+static void w_village(Engine *e) {
+    Source *s = add_wind(e, "country breeze", 1.1f, 1, 700, 0.6f, 900, 8, 0.25f); s->block = village_breeze;
+    s = engine_add(e, "rain on roofs", L_WEATHER, G_RAIN, B_BED);
+    { Rain *r = &s->g.rain; r->level = 0.4f; r->hiss = 0.05f; r->click = 0.1f; r->send = 0.3f; r->width = 1.0f;
+      r->wash = 0.85f; r->wash_white = 0.5f; r->wash_hp = 250; r->wash_lp = 7000; r->tone = 5000; r->var = 0.4f; r->drops = 0.7f;
+      static const float f[4] = { 2500, 3500, 1300, 700 }, q[4] = { 2, 2.5f, 1.8f, 1.2f }, w[4] = { 3, 2, 1, 1 }, g[4] = { 1, 0.9f, 0.8f, 0.6f }; set_surfaces(r, f, q, w, g); }
+    s->block = village_rain;
+    add_thunder(e, 0.9f, 0, 0);
+}
+/* farm animals over the hedge: a cow lowing, now and then a dog barking a few times. user[0] barks left, [1] to the next, [2] where */
+static void farm_fire(Engine *e, Source *s, float pan, float dist, float x) {
+    (void)e; (void)x;
+    if (rng_f(&s->rng) < 0.6f) crowd_say(&s->g.crowd, rng_range(&s->rng, 100, 130), rng_range(&s->rng, 1.4f, 2.2f), 300, 700, 600, 1100, pan, dist, 1.0f);
+    else { s->user[0] = (float)(2 + rng_int(&s->rng, 4)); s->user[1] = 0; s->user[2] = pan; s->user[3] = dist; }
+}
+static void farm_block(Engine *e, Source *s) {
+    if (s->user[0] <= 0 || (s->user[1] -= BLK) > 0) return;
+    engine_var_begin(e, s);
+    crowd_say(&s->g.crowd, rng_range(&s->rng, 350, 450), rng_range(&s->rng, 0.12f, 0.18f), 700, 750, 1400, 1300, s->user[2], s->user[3], 0.8f);
+    engine_var_end();
+    s->user[0] -= 1; s->user[1] = rng_range(&s->rng, 0.35f, 0.6f);
+}
+static void a_village(Engine *e) {
+    static const float tod_r[4] = { 1.5f, 0.8f, 1.2f, 0.0f }, tod_d[4] = { 1.0f, 1.0f, 0.8f, 0.1f }, tod_k[4] = { 1.0f, 0.1f, 0.0f, 0.0f }, tod_f[4] = { 0.8f, 1.0f, 0.8f, 0.3f };
+    add_phrase(e, "rookery", 0.4f, 0.4f, 0.8f, 0.6f, 5, &SP_ROOK, 0, 0, 0, tod_r, GL_BIGBIRD);
+    add_phrase(e, "garden birds", 0.45f, 0.1f, 0.6f, 0.3f, 5, &SP_BLACKBIRD, &SP_ROBIN, &SP_WREN, &SP_WOODPIGEON, TOD_DAYBIRD, GL_BIRD);
+    add_phrase(e, "ducks on the pond", 0.4f, 0.25f, 0.55f, 0.6f, 3, &SP_DUCK, 0, 0, 0, tod_d, GL_BIRD);
+    add_phrase(e, "cockerel", 0.4f, 0.6f, 0.85f, 0.0f, 1, &SP_COCKEREL, 0, 0, 0, tod_k, GL_BIGBIRD);
+    Source *s = engine_add(e, "cows and a dog", L_ANIMALS, G_CROWD, B_SCATTER);
+    s->rate = 0.025f; s->g.crowd.level = 0.35f; s->dist_lo = 0.7f; s->dist_hi = 0.9f; s->fire = farm_fire; s->block = farm_block; s->glyph = GL_GROWL;
+    memcpy(s->tod, tod_f, sizeof s->tod);
+    add_phrase(e, "owl", 0.4f, 0.5f, 0.8f, 0.0f, 1, &SP_OWL, 0, 0, 0, TOD_OWL, GL_BIGBIRD);
+}
+static void l_village(Engine *e) {
+    add_rustle(e, "big trees", 1500, 0.14f, 0.45f);
+    Source *s = engine_add(e, "pond", L_LANDSCAPE, G_WATER, B_BED);
+    { Water *w = &s->g.water; w->rate = 25; w->dmin = 2.0f; w->dmax = 7.0f; w->gamma = 2.4f; w->level = 0.22f; w->rise = 0.04f;
+      w->pan_lo = 0.2f; w->pan_hi = 0.6f; w->dist_lo = 0.3f; w->dist_hi = 0.5f; w->rush = 0.1f; w->rush_cut = 900; }
+}
+/* the church's six bells ringing changes: rounds, then the plain hunt (pairs swapping, row by row) and back to
+ * rounds, a few minutes of it now and then; the clock striking in between. user[0] rows left, [1] place in the
+ * row, [2] to the next bell, [3] till the next peal, [4] which swaps this row; ag[k].pitch the row's order */
+static const float BELL6[6] = { 1.0f, 0.889f, 0.8f, 0.75f, 0.667f, 0.6f };   /* a major scale, down from the treble */
+static void ringing_block(Engine *e, Source *s) {
+    if (s->user[0] <= 0) {
+        if ((s->user[3] -= BLK) > 0) return;
+        for (int k = 0; k < 6; k++) s->ag[k].pitch = (float)k;
+        s->user[0] = (float)(30 + rng_int(&s->rng, 40)); s->user[1] = 0; s->user[2] = 0; s->user[4] = 0;
+        s->user[3] = rng_range(&s->rng, 240.0f, 600.0f);
+        engine_post(e, L_HUMANS, GL_BEACON, -0.3f, 0.7f, 0, 0, 0);
+        return;
+    }
+    if ((s->user[2] -= BLK) > 0) return;
+    int i = (int)s->user[1], b = (int)s->ag[i].pitch;
+    ring_strike(&s->g.ring, &s->rng, &MAT_BELL, 620.0f * BELL6[b], rng_range(&s->rng, 0.45f, 0.6f), 0.55f, 0.8f, -0.3f + 0.04f * b, 0.7f);
+    s->user[2] = i == 5 ? 0.62f : 0.27f;                 /* (the handstroke gap at the row's end) */
+    if (++i < 6) { s->user[1] = (float)i; return; }
+    s->user[1] = 0; s->user[0] -= 1;
+    if (s->user[0] > 6) {                                /* the plain hunt: swap 1-2 3-4 5-6, then 2-3 4-5 */
+        int odd = (int)s->user[4] & 1;
+        for (int k = odd; k + 1 < 6; k += 2) { float t = s->ag[k].pitch; s->ag[k].pitch = s->ag[k + 1].pitch; s->ag[k + 1].pitch = t; }
+        s->user[4] += 1;
+    } else for (int k = 0; k < 6; k++) s->ag[k].pitch = (float)k;   /* rounds to finish */
+}
+/* a lawnmower in someone's garden: on for a few minutes, up and down the lawn. user[0] time left, [1] till next, [2] the phase */
+static void mower_block(Engine *e, Source *s) {
+    Hum *h = &s->g.hum;
+    if (s->user[0] > 0) {
+        s->user[0] -= BLK; s->user[2] += BLK / 14.0f;
+        float lane = sine_c(s->user[2]);
+        h->v[0].target = (0.12f + 0.06f * lane) * (s->user[0] < 3.0f ? s->user[0] / 3.0f : 1.0f);
+        h->v[0].pmul = 1.0f + 0.03f * lane; spatial_set(&h->v[0].sp, 0.5f + 0.25f * lane, 0.7f - 0.08f * lane);
+        if (s->user[0] <= 0) hum_release(h, 0, 0.5f);
+        return;
+    }
+    if ((s->user[1] -= BLK * (0.3f + e->eff.activity) * src_tod(e, s)) <= 0 && !h->v[0].on) {
+        hum_start(h, rng_range(&s->rng, 48, 56), 1.0f, 2.0f, 0.6f, 0.5f, 2500, 0, 0, 0, 2.0f); h->v[0].target = 1e-3f; h->v[0].chug_rate = 25.0f; h->v[0].chug_depth = 0.25f;
+        s->user[0] = rng_range(&s->rng, 120.0f, 300.0f); s->user[1] = rng_range(&s->rng, 300.0f, 900.0f);
+        engine_post(e, L_HUMANS, GL_CAR, 0.6f, 0.7f, 0, 0, 0);
+    }
+}
+static void h_village(Engine *e) {
+    static const float tod_m[4] = { 0.2f, 1.0f, 0.5f, 0.0f };
+    Source *s = engine_add(e, "church bells", L_HUMANS, G_RING, B_BED); s->g.ring.level = 0.5f; s->block = ringing_block; s->user[3] = 30.0f;
+    add_far_noise(e, "village road", 2.0f, 300, 0.04f, 0.1f);
+    s = engine_add(e, "lawnmower", L_HUMANS, G_HUM, B_BED); s->g.hum.level = 0.5f; s->block = mower_block; s->user[1] = 60.0f; memcpy(s->tod, tod_m, sizeof s->tod);
+    add_passby(e, "car through the village", jeep_fire, 0.02f, 8, 14, 0.4f, 0.7f, 0.05f, 0.22f, GL_CAR);
+}
+
 /* ======================================================================= the libraries */
-const char *const ENV_NAMES[NUM_ENVS] = { "CITY", "JUNGLE", "SPACE", "CAVES", "FOREST", "SWAMP", "OCEAN", "ALIEN", "INDUSTRIAL", "MEADOW" };
+const char *const ENV_NAMES[NUM_ENVS] = { "CITY", "JUNGLE", "SPACE", "CAVES", "FOREST", "SWAMP", "OCEAN", "ALIEN", "INDUSTRIAL", "MEADOW",
+                                            "MOUNTAIN", "ARCTIC", "DESERT", "SAVANNA", "VILLAGE" };
 
 #define NOPLACE 0, 0, 0, 0, 0, 0, { { 0, 0, 0 } }
 const PatchDef PATCHES[NUM_LAYERS][NUM_ENVS] = {
@@ -1046,12 +1457,16 @@ const PatchDef PATCHES[NUM_LAYERS][NUM_ENVS] = {
         { "CAVE AIRFLOW", w_caves, NOPLACE }, { "WOODLAND BREEZE", w_forest, NOPLACE }, { "SWAMP DRIZZLE", w_swamp, NOPLACE },
         { "SEA WIND", w_ocean, NOPLACE }, { "ION STORM", w_alien, NOPLACE }, { "PIPE WIND", w_industrial, NOPLACE },
         { "SUMMER BREEZE", w_meadow, NOPLACE },
+        { "RIDGE WIND", w_mountain, NOPLACE }, { "POLAR WIND", w_arctic, NOPLACE }, { "DESERT WIND", w_desert, NOPLACE },
+        { "PLAINS STORM", w_savanna, NOPLACE }, { "COUNTRY BREEZE", w_village, NOPLACE },
     },
     {   /* ANIMALS */
         { "CITY BIRDS", a_city, NOPLACE }, { "RAINFOREST", a_jungle, NOPLACE }, { "DEEP SIGNALS", a_space, NOPLACE },
         { "BATS", a_caves, NOPLACE }, { "SONGBIRDS", a_forest, NOPLACE }, { "FROGS AND HERON", a_swamp, NOPLACE },
         { "GULLS", a_ocean, NOPLACE }, { "ALIEN CREATURES", a_alien, NOPLACE }, { "PIGEONS AND CROWS", a_industrial, NOPLACE },
         { "SKYLARKS AND BEES", a_meadow, NOPLACE },
+        { "HIGH CRAGS", a_mountain, NOPLACE }, { "SEALS AND WOLVES", a_arctic, NOPLACE }, { "DESERT NIGHT", a_desert, NOPLACE },
+        { "LIONS AND HYENAS", a_savanna, NOPLACE }, { "ROOKS AND DUCKS", a_village, NOPLACE },
     },
     {   /* LANDSCAPE: also the place (reverb, backdrop, states) */
         { "STREETS", l_city, 1.2f, 1.8f, 6000, 20, 0.35f, 0, { { "AFTERNOON", 0, 0 }, { "3 AM", 0, -0.35f }, { "MORNING RUSH", 0, 0.35f }, { "RAIN", 0.25f, 0 } } },
@@ -1064,11 +1479,18 @@ const PatchDef PATCHES[NUM_LAYERS][NUM_ENVS] = {
         { "CRYSTAL PLAINS", l_alien, 1.4f, 4.0f, 9000, 35, 0.45f, 7, { { "TWIN DAWN", 0, 0 }, { "SPORE BLOOM", 0, 0.35f }, { "ION STORM", 0.35f, -0.1f }, { "LONG NIGHT", -0.1f, -0.1f } } },
         { "FACTORY YARD", l_industrial, 1.6f, 3.0f, 4500, 30, 0.45f, 8, { { "FULL PRODUCTION", 0, 0.2f }, { "NIGHT SHIFT", 0, -0.2f }, { "RAIN ON THE ROOF", 0.3f, 0 }, { "LOCKED UP", 0.2f, -0.45f } } },
         { "WILDFLOWER MEADOW", l_meadow, 0.9f, 0.9f, 6000, 8, 0.18f, 9, { { "SUMMER AFTERNOON", 0, 0 }, { "BUSY DAY", 0, 0.3f }, { "PASSING SHOWER", 0.25f, 0 }, { "HAZY HEAT", -0.08f, -0.15f } } },
+        { "MOUNTAIN PASS", l_mountain, 2.0f, 3.5f, 5000, 60, 0.35f, 10, { { "CLEAR DAY", 0, 0 }, { "CLOUD ROLLING IN", 0.25f, -0.1f }, { "STILL DAWN", -0.1f, 0.2f }, { "STORM ON THE PEAKS", 0.4f, -0.2f } } },
+        { "ICE SHELF", l_arctic, 1.0f, 1.4f, 7000, 10, 0.2f, 11, { { "STILL COLD", -0.1f, -0.1f }, { "BLIZZARD", 0.4f, -0.2f }, { "MIDNIGHT SUN", 0, 0.2f }, { "ICE ON THE MOVE", 0.1f, 0.15f } } },
+        { "SINGING DUNES", l_desert, 0.8f, 0.7f, 7000, 5, 0.1f, 12, { { "MIDDAY HEAT", -0.05f, -0.2f }, { "DESERT NIGHT", 0, 0.1f }, { "SANDSTORM", 0.45f, -0.3f }, { "STILL DAWN", -0.1f, 0.2f } } },
+        { "GRASSLANDS", l_savanna, 1.0f, 1.0f, 6000, 6, 0.15f, 13, { { "DRY NOON", -0.05f, -0.15f }, { "GOLDEN EVENING", 0, 0.25f }, { "STORM SEASON", 0.35f, 0 }, { "NIGHT PLAINS", 0, 0 } } },
+        { "VILLAGE GREEN", l_village, 1.1f, 1.3f, 5500, 15, 0.3f, 14, { { "SUNDAY MORNING", 0, 0.2f }, { "QUIET AFTERNOON", 0, -0.1f }, { "WET DAY", 0.3f, 0 }, { "MARKET DAY", 0, 0.3f } } },
     },
     {   /* HUMANS */
         { "TRAFFIC", h_city, NOPLACE }, { "RIVER BOAT", h_jungle, NOPLACE }, { "LIFE SUPPORT", h_space, NOPLACE },
         { "DEEP RUMBLE", h_caves, NOPLACE }, { "DISTANT ROAD", h_forest, NOPLACE }, { "AIRBOAT", h_swamp, NOPLACE },
         { "HARBOUR", h_ocean, NOPLACE }, { "VISITORS", h_alien, NOPLACE }, { "MACHINERY", h_industrial, NOPLACE },
         { "COUNTRYSIDE", h_meadow, NOPLACE },
+        { "VALLEY BELOW", h_mountain, NOPLACE }, { "RESEARCH STATION", h_arctic, NOPLACE }, { "CARAVAN", h_desert, NOPLACE },
+        { "SAFARI CAMP", h_savanna, NOPLACE }, { "VILLAGE LIFE", h_village, NOPLACE },
     },
 };

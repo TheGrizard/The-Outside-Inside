@@ -14,7 +14,7 @@ wait 200
 shot presets.png
 expect patch1 7
 wait 2500
-turn ALGO -1
+turn ALGO -2
 wait 200
 shot envlist.png
 expect env 0
@@ -30,7 +30,7 @@ wait 6000
 tap SAVE
 wait 200
 expect nusers 1
-expect env 10
+expect env 15
 shot saved.png
 wait 1500
 turn ALGO 1
@@ -38,18 +38,29 @@ wait 200
 expect env 250
 turn ALGO 1
 wait 200
-expect env 7
-turn ALGO -2
+expect env 251
+turn ALGO 1
 wait 200
-expect env 10
+expect env 7
+turn ALGO -3
+wait 200
+expect env 15
 shot envlist_user.png
-turn ALGO 2
+turn ALGO 3
 wait 5000
 shot alien.png
 turn ALGO 1
 wait 5000
+shot arctic.png
+expect env 11
+turn ALGO 1
+wait 5000
 shot caves.png
 turn ALGO 2
+wait 5000
+shot desert.png
+expect env 12
+turn ALGO 1
 wait 5000
 shot forest2.png
 turn ALGO 1
@@ -65,7 +76,15 @@ expect env 9
 expect mac0 20
 turn ALGO 1
 wait 5000
+shot mountain.png
+expect env 10
+turn ALGO 1
+wait 5000
 shot ocean.png
+turn ALGO 1
+wait 5000
+shot savanna.png
+expect env 13
 turn ALGO 1
 wait 5000
 shot space.png
@@ -78,7 +97,11 @@ turn K1 -1
 wait 200
 expect mac0 20
 release HOME
-turn ALGO 1
+turn ALGO 2
+wait 5000
+shot village.png
+expect env 14
+turn ALGO -1
 wait 5000
 shot swamp.png
 expect env 5

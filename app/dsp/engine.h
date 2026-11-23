@@ -95,7 +95,7 @@ void reverb_init(Reverb *rv, float size, float rt60, float damp_hz, float predel
 void reverb_block(Reverb *rv, const float *inL, const float *inR, float *outL, float *outR);
 
 /* ---------------- patches: four libraries, one per layer; an environment is one patch from each ---------------- */
-#define NUM_ENVS 10
+#define NUM_ENVS 15
 #define ENV_MEADOW 9
 typedef struct { const char *name; float dw, da; } StateDef;      /* a scene state: offsets on weather, activity */
 typedef struct {
