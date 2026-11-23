@@ -1123,7 +1123,7 @@ static void h_mountain(Engine *e) {
     Source *s = engine_add(e, "cowbells", L_HUMANS, G_RING, B_SCATTER);
     s->rate = 0.12f; s->alive = 1; s->g.ring.level = 0.45f; s->dist_lo = 0.75f; s->dist_hi = 0.9f; s->fire = cowbell_fire; s->block = cowbell_block; s->glyph = GL_CHIME;
     memcpy(s->tod, tod_c, sizeof s->tod);
-    s = engine_add(e, "valley church", L_HUMANS, G_RING, B_BED); s->g.ring.level = 0.5f; s->block = valley_bell_block; s->user[2] = 20.0f;
+    s = engine_add(e, "valley church", L_HUMANS, G_RING, B_BED); s->g.ring.level = 0.8f; s->block = valley_bell_block; s->user[2] = 20.0f;
     add_passby(e, "helicopter", heli_fire, 0.008f, 20, 30, 0.6f, 0.85f, 0.05f, 0.28f, GL_PLANE);
     add_far_noise(e, "valley road", 2.0f, 220, 0.03f, 0.06f);
 }
@@ -1448,18 +1448,18 @@ static void ringing_block(Engine *e, Source *s) {
         s->ag[7].pitch = rng_f(&s->rng) < 0.5f;
         s->user[0] = s->ag[7].pitch > 0 ? (float)(12 + rng_int(&s->rng, 20)) : (float)(30 + rng_int(&s->rng, 40));
         s->user[1] = 0; s->user[2] = 0; s->user[4] = 0;
-        s->user[3] = rng_range(&s->rng, 240.0f, 600.0f);
-        engine_post(e, L_HUMANS, GL_BEACON, -0.3f, 0.7f, 0, 0, 0);
+        s->user[3] = rng_range(&s->rng, 120.0f, 300.0f);   /* (the next: two to five minutes on) */
+        engine_post(e, L_HUMANS, GL_BEACON, -0.3f, 0.55f, 0, 0, 0);
         return;
     }
     if ((s->user[2] -= BLK) > 0) return;
     if (s->ag[7].pitch > 0) {            /* tolling: the tenor, every two seconds */
-        ring_strike(&s->g.ring, &s->rng, &MAT_CHURCH, 592.0f * BELL6[5] / BELL6[2], rng_range(&s->rng, 0.5f, 0.6f), 0.55f, 1.0f, -0.2f, 0.7f);
+        ring_strike(&s->g.ring, &s->rng, &MAT_CHURCH, 592.0f * BELL6[5] / BELL6[2], rng_range(&s->rng, 0.85f, 1.0f), 0.55f, 1.0f, -0.2f, 0.55f);
         s->user[2] = 2.0f; s->user[0] -= 1;
         return;
     }
     int i = (int)s->user[1], b = (int)s->ag[i].pitch;
-    ring_strike(&s->g.ring, &s->rng, &MAT_CHURCH, 620.0f * BELL6[b], rng_range(&s->rng, 0.45f, 0.6f), 0.55f, 0.5f, -0.3f + 0.04f * b, 0.7f);
+    ring_strike(&s->g.ring, &s->rng, &MAT_CHURCH, 620.0f * BELL6[b], rng_range(&s->rng, 0.45f, 0.6f), 0.55f, 0.5f, -0.3f + 0.04f * b, 0.55f);
     s->user[2] = i == 5 ? 0.62f : 0.27f;                 /* (the handstroke gap at the row's end) */
     if (++i < 6) { s->user[1] = (float)i; return; }
     s->user[1] = 0; s->user[0] -= 1;
@@ -1488,7 +1488,7 @@ static void mower_block(Engine *e, Source *s) {
 }
 static void h_village(Engine *e) {
     static const float tod_m[4] = { 0.2f, 1.0f, 0.5f, 0.0f };
-    Source *s = engine_add(e, "church bells", L_HUMANS, G_RING, B_BED); s->g.ring.level = 0.5f; s->block = ringing_block; s->user[3] = 30.0f;
+    Source *s = engine_add(e, "church bells", L_HUMANS, G_RING, B_BED); s->g.ring.level = 1.4f; s->block = ringing_block; s->user[3] = 30.0f;
     add_far_noise(e, "village road", 2.0f, 300, 0.04f, 0.1f);
     s = engine_add(e, "lawnmower", L_HUMANS, G_HUM, B_BED); s->g.hum.level = 0.5f; s->block = mower_block; s->user[1] = 60.0f; memcpy(s->tod, tod_m, sizeof s->tod);
     add_passby(e, "car through the village", jeep_fire, 0.02f, 8, 14, 0.4f, 0.7f, 0.05f, 0.22f, GL_CAR);
