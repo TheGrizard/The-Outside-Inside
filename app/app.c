@@ -110,7 +110,7 @@ static struct {
     int on, dream, at, travelling, held, wx_own;
     float stay, t, cyc, cyc_aim, wx, wx_from, wx_to;
     uint8_t from[NUM_LAYERS], to[NUM_LAYERS], swapped[NUM_LAYERS], mac0, mac1;
-    float lv_from[NUM_LAYERS], mix[NUM_LAYERS], swap_at[NUM_LAYERS], share[NUM_LAYERS];
+    float lv_from[NUM_LAYERS], mix[NUM_LAYERS], swap_at[NUM_LAYERS], share[NUM_LAYERS], agc;   /* agc: the dream's evening out (dB) */
     uint32_t last;
 } J;
 
@@ -132,6 +132,7 @@ static void engine_follow(void)
 /* ------------------------------------------------------------------ sound */
 #define OUT_GAIN 2.4f
 static volatile int muted;
+static volatile float out_pow;           /* the scene's power, smoothed over seconds */
 static float gain_now;
 
 static inline float soft(float x)       /* a gentle limiter: transparent below 0.7, never past 1.0 */
@@ -197,6 +198,11 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
     engine_block_events(&eng);
     engine_block_mix(&eng, L, R);
     if (two_cores) on2_mask = balance();
+    {   /* how loud the scene is (before the volume knob): the dream holds it steady by it, slowly */
+        float ss = 0; int m = nsub * OUT_BLOCK;
+        for (int i = 0; i < m; i++) ss += L[i] * L[i] + R[i] * R[i];
+        out_pow += (ss / (2.0f * (float)(m > 0 ? m : 1)) - out_pow) * 0.002f;   /* (about three seconds) */
+    }
     for (uint32_t i = 0; i < n && i < (uint32_t)(nsub * OUT_BLOCK); i++) {
         gain_now += (g - gain_now) * 0.002f;
         lr[2 * i] = (int32_t)(soft(L[i] * gain_now) * 8388000.0f);
@@ -391,6 +397,7 @@ static void select_layer(int l) { ui.sel = (l % NUM_LAYERS + NUM_LAYERS) % NUM_L
  * K1-K4 set the mix of the four layers for the whole journey; turning WEATHER or TIME (or REC) takes them over
  * (the weather until the next place, the time from there on). Nothing of it is saved but that it is on. */
 #define J_STAY 360.0f
+#define J_LOUDNESS -27.0f                        /* the journey's usual loudness (dB, before the volume): the dream's aim */
 #define J_TRAVEL 90.0f
 #define J_DAY 3600.0f                            /* a day an hour: a loop of the eight, to the minute */
 static const uint8_t J_ROUTE[] = { 4, 9, 0, 8, 6, 5, 1, 3 };   /* FOREST MEADOW CITY INDUSTRIAL OCEAN SWAMP JUNGLE CAVES */
@@ -435,7 +442,11 @@ static const float J_SLOT[NUM_LAYERS] = { 12, 34, 56, 78 };   /* when on the way
 #define J_LOW 0.35f                              /* (more for a layer that is most of the sound: up to J_LOW + 0.4) */
 #define J_SWAP_S 3.0f
 static float smooth01(float u) { u = u < 0 ? 0 : u > 1 ? 1 : u; return u * u * (3 - 2 * u); }
-static float j_level(int env, int l) { float v = ENV_LEVELS[env][l] * J_TRIM[env] * J.mix[l] / 75.0f; return v > 100 ? 100 : v; }
+static float j_level(int env, int l)
+{
+    float v = ENV_LEVELS[env][l] * J_TRIM[env] * J.mix[l] / 75.0f * (J.dream ? fm_exp2f(J.agc * 0.0830f) : 1.0f);   /* (10^(dB/40)) */
+    return v > 100 ? 100 : v;
+}
 
 static void j_set_off(const uint8_t to[NUM_LAYERS], float wx_to)   /* on the way: each layer to its place, the weather to wx_to */
 {
@@ -498,7 +509,7 @@ static void j_dream(void)
 static void j_next(void) { if (J.dream) j_dream(); else j_go((J.at + 1) % J_N); }
 static void j_start(int dream)
 {
-    J.dream = dream;
+    J.dream = dream; J.agc = 0;
     eng.swap_out = J_SWAP_S * 0.4f; eng.swap_in = J_SWAP_S * 0.6f;
     int p = set.cur.patch[L_LANDSCAPE], at = 0;
     for (int i = 0; i < J_N; i++) if (J_ROUTE[i] == p) at = i;
@@ -532,6 +543,12 @@ static void j_tick(uint32_t now)
     J.last = now;
     if (dt > 0.5f) dt = 0.5f;
     if (!set.playing) return;
+    if (J.dream) {   /* a mix of quiet places, or a fog over it all: brought up (or a loud one down) to the journey's
+                      * loudness, slowly (a few dB a minute at most), never more than 9 dB either way */
+        float db = 10.0f * fm_log2f(out_pow + 1e-12f) * 0.30103f, step = (J_LOUDNESS - db) * dt / 20.0f;
+        if (step > dt * 0.1f) step = dt * 0.1f; else if (step < -dt * 0.1f) step = -dt * 0.1f;
+        J.agc += step; J.agc = J.agc > 9.0f ? 9.0f : J.agc < -9.0f ? -9.0f : J.agc;
+    }
     /* the user's hands first: WEATHER, TIME (the knob, MIDI, REC) */
     if (set.cur.mac[0] != J.mac0) { J.wx = set.cur.mac[0] / 100.0f; J.wx_own = 1; }
     if (set.cur.mac[1] != J.mac1) J.cyc_aim = set.cur.mac[1] / 100.0f * 0.75f + (J.cyc > 0.875f ? 1.0f : 0);
@@ -1411,6 +1428,8 @@ int app_expect(const char *what, int *got)
     else if (!strcmp(what, "jheld")) *got = J.on && J.held;
     else if (!strcmp(what, "jat")) *got = J.on ? (J.dream ? J.to[L_LANDSCAPE] : J_ROUTE[J.at]) : -1;
     else if (!strcmp(what, "jdream")) *got = J.on && J.dream;
+    else if (!strcmp(what, "outdb")) *got = (int)(10.0f * fm_log2f(out_pow + 1e-12f) * 0.30103f - 0.5f);
+    else if (!strcmp(what, "jagc")) *got = (int)(J.agc + (J.agc < 0 ? -0.5f : 0.5f));
     else if (!strcmp(what, "sel")) *got = ui.sel;
     else if (!strcmp(what, "nusers")) *got = set.nusers;
     else if (!strcmp(what, "playing")) *got = set.playing;
