@@ -116,13 +116,6 @@ world's their own). The screen's top line says DREAM (or JOURNEY), and under it 
 people are from (LAND/LIFE/PEOPLE; a journey: the place, and > NEXT on the way). A mix is never
 heavier on the processor than the heaviest place.
 
-## Making music with it, and supporting it
-
-What you make with The Outside Inside is yours: release it, sell it, use it however you like. If you do release
-something made with it, a credit ("made with The Outside Inside") is appreciated, though never required.
-
-To support The Outside Inside, have a listen to my label, [Burnt Ends Records on Bandcamp](https://burntendsrecords.bandcamp.com/).
-
 ## Building it
 
 The repository holds the app in `app/` and [fm1-base](https://github.com/charlesvestal/fm1-base) in `base/`, as a

@@ -45,10 +45,6 @@ The FM-1 also works as a USB audio interface: record it straight into a computer
 
 The [user guide](manual/) covers every place, weather and setting, with ideas to try.
 
-What you make with The Outside Inside is yours to release and sell. A credit ("made with The Outside Inside") is
-appreciated, never required. To support The Outside Inside, have a listen to my label,
-[Burnt Ends Records on Bandcamp](https://burntendsrecords.bandcamp.com/).
-
 Made by [TheGrizard](https://github.com/TheGrizard) on [fm1-base](https://github.com/charlesvestal/fm1-base) and
 felucca-bsp. Free software under the MPL-2.0.
 
