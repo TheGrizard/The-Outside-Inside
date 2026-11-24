@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE-OUTSIDE-INSIDE · generative field recordings, made entirely by synthesis</title>
+<meta name="description" content="THE-OUTSIDE-INSIDE, generative field recordings, made entirely by synthesis for THE-OUTSIDE-INSIDE, a firmware for the M-VAVE FM-1.">
+<style>
+/* paper and ink: warm white paper, ink-blue type, vermilion for what is played, mustard for asides; a shade of the
+   paper for code and callouts (CTL-1's; a firmware may restyle its site) */
+:root {
+  --paper: #fbf8f1; --sheet: #efe9dc; --rule: #ddd4c2; --ink: #1e2b5a; --muted: #5d6585;
+  --hot: #e5482e; --hot-t: #f8d3c9; --cool: #d9a21b; --cool-t: #f5e4b8;
+  --hot-ink: #c23a22;                                 /* the vermilion as text: 4.5:1 on the paper */
+  color-scheme: light;
+}
+body {
+  background: var(--paper); color: var(--ink); margin: 0;
+  font: 400 17px/1.6 "Helvetica Neue", Helvetica, Arial, sans-serif;
+  padding-inline: 16px; padding-block: 32px 64px;
+}
+main { max-width: 46rem; margin: 0 auto; }
+.page > .site { max-width: 46rem; margin-inline: auto; }
+main:focus { outline: none; }
+h1, h2, h3 { font-family: inherit; text-wrap: balance; line-height: 1.2; }
+h1 { font-size: 2.2rem; font-weight: 700; margin: 0 0 .4rem; letter-spacing: .02em; }
+h2 { font-size: 1.3rem; font-weight: 700; margin: 3rem 0 .8rem; padding-top: .8rem; border-top: 2px solid var(--ink); }
+h2 .num { color: var(--hot); margin-right: .5em; font-variant-numeric: tabular-nums; }
+h3 { font-size: 1.1rem; font-weight: 700; margin: 2rem 0 .5rem; }
+p, li { max-width: 65ch; }
+p { margin: 0 0 1rem; }
+ul, ol { padding-left: 1.3rem; margin: 0 0 1rem; }
+li { margin: .2rem 0; }
+li::marker { color: var(--hot); }
+strong { font-weight: 700; }
+a { color: var(--ink); text-decoration-color: var(--hot); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+a:hover { background: var(--hot-t); }
+:focus-visible { outline: 3px solid var(--hot-ink); outline-offset: 2px; }
+.skip { position: absolute; left: 16px; top: -100px; background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 0 0 6px 6px; z-index: 1; }
+.skip:focus { top: 0; }
+code, pre { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .86em; }
+code { background: var(--sheet); padding: .08em .35em; border-radius: 3px; }
+pre { background: var(--sheet); border-radius: 6px; padding: 14px 16px; overflow-x: auto; line-height: 1.45; margin: 0 0 1.2rem; }
+pre code { background: none; padding: 0; font-size: inherit; }
+hr { display: none; }
+.table { overflow-x: auto; margin: 0 0 1.3rem; }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; vertical-align: top; padding: .45rem .7rem .45rem 0; border-bottom: 1px solid var(--rule); }
+th { font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: .78rem; color: var(--muted); border-bottom: 2px solid var(--ink); }
+td:first-child { white-space: nowrap; }
+.lede { margin-bottom: 1.6rem; }
+.status { background: var(--sheet); border-radius: 6px; padding: 12px 16px; }
+.status p { margin: 0; }
+.site { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 1.2rem; margin: 0 0 1.6rem; padding-bottom: .5rem; border-bottom: 2px solid var(--ink); }
+.site .home { font-size: 1.1rem; font-weight: 700; letter-spacing: .04em; color: var(--ink); text-decoration: none; }
+.site .home:hover { color: var(--hot-ink); background: none; }
+.site nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: .2rem 1rem; font-size: .92rem; }
+.site nav a { color: var(--ink); text-underline-offset: 3px; }
+.site nav a[aria-current] { text-decoration: none; color: var(--hot-ink); }
+a.home { color: inherit; text-decoration: none; }
+a.home:hover { background: none; color: var(--hot-ink); }
+main > a.home { display: inline-block; font-size: .9rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 .4rem; }
+.callout { border-left: 4px solid var(--cool); background: var(--cool-t); padding: 10px 16px; margin: 0 0 1.2rem; max-width: 65ch; border-radius: 0 6px 6px 0; }
+.callout p { margin: 0; }
+details { background: var(--sheet); border-radius: 6px; padding: 0 16px; margin: 0 0 1.2rem; }
+details > summary { cursor: pointer; padding: 10px 0; }
+details[open] > summary { margin-bottom: .4rem; }
+details > :last-child { margin-bottom: 1rem; }
+.swatch { display: inline-block; width: .7em; height: .7em; margin-right: .4em; vertical-align: .02em; }
+nav.contents ol { columns: 2 14rem; column-gap: 2rem; padding-left: 1.3rem; }
+.figs { display: flex; flex-wrap: wrap; gap: 20px; margin: .4rem 0 1.6rem; }
+figure { margin: 0; flex: 0 1 auto; }
+figure img { display: block; max-width: 100%; height: auto; }
+figure.shot img { width: 300px; image-rendering: pixelated; border-radius: 4px; box-shadow: 0 0 0 1px var(--rule); }
+figure.wide { flex-basis: 100%; }
+figure.wide img { width: 100%; }
+figcaption { color: var(--muted); font-size: .88rem; margin-top: .4rem; max-width: 300px; }
+figure.wide figcaption { max-width: none; }
+nav.contents li { break-inside: avoid; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="page">
+<main id="content" tabindex="-1">
+<a class="home" href="../">THE-OUTSIDE-INSIDE</a>
+<h1>The Outside Inside</h1>
+<p>Generative field recordings for the M-VAVE FM-1, made entirely by synthesis. Fifteen places to stand in, from city streets, a summer meadow and the Arctic ice to an alien plain; four layers of sound that never quite repeat; for playing along with, or leaving on in the background.</p>
+<div class="figs"><figure class="shot"><img src="img/screen.png" alt="The Outside Inside on the FM-1&#x27;s screen: a forest, its weather and the time of day" loading="lazy"><figcaption>The Outside Inside on the FM-1's screen: a forest, its weather and the time of day</figcaption></figure></div>
+<p><strong>Version 0.9.3</strong> (a test release) · <strong><a href="install/">Install it</a></strong> · <strong><a href="manual/">User guide</a></strong> · <a href="emu/">Play it in your browser</a> · <a href="https://github.com/TheGrizard/The-Outside-Inside">Source</a></p>
+<h2 id="installing">Installing</h2>
+<p>Open the <a href="install/">installer</a> in Chrome or Edge on a computer, plug the FM-1 in by USB and follow the page. It installs over M-VAVE's own firmware or another FM-1 firmware, on FM-1s with either flash chip, and can put M-VAVE's firmware back. You install it at your own risk. Or <a href="firmware/the-outside-inside-0.9.3.fwsc">download the-outside-inside-0.9.3.fwsc</a> for the command-line installer: <code>python3 tools/fm1_install.py the-outside-inside-0.9.3.fwsc</code>.</p>
+<h2 id="playing">Playing</h2>
+<div class="table" tabindex="0" role="region" aria-label="Table: Playing (Control, What it does)"><table><thead><tr><th>Control</th><th>What it does</th></tr></thead><tbody><tr><td>K1 to K4</td><td>the volume of WEATHER, ANIMALS, LANDSCAPE, HUMANS (the levels rise up as you turn)</td></tr><tr><td>SEL held + K1 to K4</td><td>each layer's density: how often its events happen</td></tr><tr><td>HOME held + K1 to K4</td><td>the macros: WEATHER, TIME, ACTIVITY, ENTROPY</td></tr><tr><td>ALGORITHM</td><td>the environment: JOURNEY (the Earth's places in turn), DREAM (places mixed at random), then alien, arctic, caves, city, desert, forest, industrial, jungle, meadow, mountain, ocean, savanna, space, swamp, village, then your own</td></tr><tr><td>SELECT, or tap SEL</td><td>the layer to edit; PRESET changes its preset</td></tr><tr><td>REC</td><td>randomise the macros</td></tr><tr><td>SAVE</td><td>save as your own environment (up to 8)</td></tr><tr><td>PLAY</td><td>stop and start</td></tr><tr><td>OCT- / OCT+</td><td>the previous or next weather; on a journey, hold here or travel on now</td></tr><tr><td>the first four white keys</td><td>one event now from each layer</td></tr><tr><td>HOME tapped</td><td>the processor's load and whether settings are being saved</td></tr><tr><td>GLO</td><td>the GLOBAL menu: USB AUDIO, the level a computer records over USB: the VOLUME KNOB's, or always FULL LEVEL (the knob then sets only the speaker and headphones)</td></tr></tbody></table></div>
+<p>ENTROPY is how much the scene changes by itself: at zero it stays as you set it; turned up, the weather drifts, the light changes and the place moves through its moods. Where a sound appears on the screen is where you hear it.</p>
+<p>JOURNEY travels round the Earth's places by itself, about an hour a loop, the layers changing one at a time so the places blend into each other, the weather and the time of day moving on: a backdrop for a live set. K1 to K4 set its mix; WEATHER and TIME take over when turned. DREAM does the same through places mixed at random: an alien plain full of a factory's machines, a cave full of a meadow's birds.</p>
+<p>The FM-1 also works as a USB audio interface: record it straight into a computer.</p>
+<p>The <a href="manual/">user guide</a> covers every place, weather and setting, with ideas to try.</p>
+<p>Made by <a href="https://github.com/TheGrizard">TheGrizard</a> on <a href="https://github.com/charlesvestal/fm1-base">fm1-base</a> and felucca-bsp. Free software under the MPL-2.0.</p>
+<p>M-VAVE and FM-1 are trademarks of their owners. The Outside Inside is not affiliated with M-VAVE.</p>
+</main>
+</div>
+</body>
+</html>
