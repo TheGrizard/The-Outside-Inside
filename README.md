@@ -6,6 +6,11 @@ sound that never quite repeat, for playing along with or leaving on in the backg
 By [TheGrizard](https://github.com/TheGrizard). Built on [fm1-base](https://github.com/charlesvestal/fm1-base) (MPL-2.0) and felucca-bsp. Works on both FM-1 flash
 chips: the original Puya P25Q80 and the UC25HQ80 in units sold since autumn 2026.
 
+**[Install it in your browser](https://TheGrizard.github.io/The-Outside-Inside/install/)** ·
+**[User guide](https://TheGrizard.github.io/The-Outside-Inside/manual/)** ·
+[Try it in the emulator](https://TheGrizard.github.io/The-Outside-Inside/emu/) ·
+[Releases](https://github.com/TheGrizard/The-Outside-Inside/releases)
+
 ## Playing it
 
 The home screen shows the scene. Where a bird or a car appears on screen is where you hear it in the stereo field.
@@ -110,6 +115,13 @@ factory's machines, a cave with a meadow's birds. The weather is the weather lay
 world's their own). The screen's top line says DREAM (or JOURNEY), and under it the land and where the life and the
 people are from (LAND/LIFE/PEOPLE; a journey: the place, and > NEXT on the way). A mix is never
 heavier on the processor than the heaviest place.
+
+## Making music with it, and supporting it
+
+What you make with The Outside Inside is yours: release it, sell it, use it however you like. If you do release
+something made with it, a credit ("made with The Outside Inside") is appreciated, though never required.
+
+To support The Outside Inside, have a listen to my label, [Burnt Ends Records on Bandcamp](https://burntendsrecords.bandcamp.com/).
 
 ## Building it
 

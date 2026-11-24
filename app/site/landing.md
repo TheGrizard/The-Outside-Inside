@@ -6,7 +6,7 @@ the background.
 
 ![The Outside Inside on the FM-1's screen: a forest, its weather and the time of day](img/screen.png)
 
-**Version {{VERSION}}** (a test release) · **[Install it](install/)** · [Play it in your browser](emu/) ·
+**Version {{VERSION}}** (a test release) · **[Install it](install/)** · **[User guide](manual/)** · [Play it in your browser](emu/) ·
 [Source](https://github.com/TheGrizard/The-Outside-Inside)
 
 ## Installing
@@ -42,6 +42,12 @@ its mix; WEATHER and TIME take over when turned. DREAM does the same through pla
 full of a factory's machines, a cave full of a meadow's birds.
 
 The FM-1 also works as a USB audio interface: record it straight into a computer.
+
+The [user guide](manual/) covers every place, weather and setting, with ideas to try.
+
+What you make with The Outside Inside is yours to release and sell. A credit ("made with The Outside Inside") is
+appreciated, never required. To support The Outside Inside, have a listen to my label,
+[Burnt Ends Records on Bandcamp](https://burntendsrecords.bandcamp.com/).
 
 Made by [TheGrizard](https://github.com/TheGrizard) on [fm1-base](https://github.com/charlesvestal/fm1-base) and
 felucca-bsp. Free software under the MPL-2.0.
