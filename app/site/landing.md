@@ -31,6 +31,7 @@ installer: `python3 tools/fm1_install.py {{PKG}}`.
 | OCT- / OCT+ | the previous or next weather; on a journey, hold here or travel on now |
 | the first four white keys | one event now from each layer |
 | HOME tapped | the processor's load and whether settings are being saved |
+| GLO | the GLOBAL menu: USB AUDIO, the level a computer records over USB: the VOLUME KNOB's, or always FULL LEVEL (the knob then sets only the speaker and headphones) |
 
 ENTROPY is how much the scene changes by itself: at zero it stays as you set it; turned up, the weather drifts, the
 light changes and the place moves through its moods. Where a sound appears on the screen is where you hear it.

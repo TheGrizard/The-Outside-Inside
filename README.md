@@ -26,9 +26,19 @@ the knobs are; each column's bar shows the sound's level as it plays, the white 
 | OCT- / OCT+ | the previous / next weather, A to Z (on a journey: hold here / travel on now) |
 | first four white keys | trigger one event now from WEATHER, ANIMALS, LANDSCAPE, HUMANS |
 | HOME tapped | processor load, cores, whether settings are being saved, and what each layer costs |
+| GLO | the GLOBAL menu: settings for the FM-1 itself (below); PRESET, ALGORITHM or a tap on SEL changes one, GLO or HOME closes it |
+
+### GLOBAL
+
+GLO opens a menu of settings for the FM-1 itself, kept over power off:
+
+- **USB AUDIO**: what a computer records from the FM-1 over USB. **VOLUME KNOB** (the default): the same level as
+  the speaker and headphones, so the volume knob turns the recording up and down. **FULL LEVEL**: the computer always
+  gets the full level, whatever the knob says, and the knob sets only the speaker and headphones. Handy when the FM-1
+  goes into a DAW or a live set's mixer and you want a steady level there while you listen at your own.
 
 Only the buttons and keys that do something light up: they glow, and light fully while pressed (PLAY green while
-playing, SAVE while there is something unsaved).
+playing, SAVE while there is something unsaved, GLO while its menu is open).
 
 A built-in environment starts with its own volumes and the densities as designed; your own environments keep the
 volumes they were saved with (and MEADOW starts calm). Each world has its own weather, and ENTROPY only drifts

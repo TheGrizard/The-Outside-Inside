@@ -30,7 +30,9 @@ static Engine eng PLAT_POOL;
 typedef struct { uint8_t patch[NUM_LAYERS], level[NUM_LAYERS], dens[NUM_LAYERS], mac[4]; } env_t;
 typedef struct {
     uint32_t magic;
-    uint8_t algo, nusers, playing, rsv;
+    uint8_t algo, nusers, playing;
+    uint8_t usb_full;                    /* GLOBAL > USB AUDIO: 1 FULL LEVEL to the computer, 0 the VOLUME KNOB's
+                                          * (the spare byte until 0.9.3: 0 in every older save) */
     env_t cur;
     env_t user[NUSER];
 } settings_t;
@@ -61,6 +63,7 @@ static void settings_defaults(void)
     set.algo = 4;                        /* FOREST */
     set.nusers = 0;
     set.playing = 1;
+    set.usb_full = 0;
     for (int l = 0; l < NUM_LAYERS; l++) { set.cur.patch[l] = 4; set.cur.level[l] = LV[l]; set.cur.dens[l] = 50; }
     set.cur.mac[0] = 33; set.cur.mac[1] = 33; set.cur.mac[2] = 50; set.cur.mac[3] = 40;
 }
@@ -69,6 +72,7 @@ static int settings_ok(void)
 {
     if (set.magic != SET_MAGIC || set.nusers > NUSER || (set.algo >= NUM_ENVS + set.nusers && set.algo != ALGO_JOURNEY && set.algo != ALGO_DREAM)) return 0;
     for (int l = 0; l < NUM_LAYERS; l++) if (set.cur.patch[l] >= NUM_ENVS) return 0;
+    if (set.usb_full > 1) set.usb_full = 0;
     return 1;
 }
 
@@ -221,6 +225,7 @@ void app_init(void)
 {
     dsp_init();
     settings_load();
+    plat_usb_audio_full(set.usb_full);   /* GLOBAL's USB AUDIO, as it was left */
     engine_init(&eng, 0x5EED0000u ^ plat_ms());
     eng.clock = plat_ticks24;
     eng.core = plat_core;
@@ -256,6 +261,7 @@ static struct {
     float t;                             /* animation time, seconds */
     char head_key[80];
     uint32_t splash_t0; int splash_on, touched;   /* the opening animation; any control skips it */
+    int glob, glob_row;                  /* the GLOBAL menu (GLO): open, and the row on it */
 } ui;
 enum { PANEL_LEVELS, PANEL_DENS, PANEL_MACROS };
 
@@ -375,6 +381,37 @@ static void show_envs(void)
     ui.pop_until = ui.list_until = 0;
     env_name(t);
     say_text("ENVIRONMENT", t);
+}
+
+/* GLOBAL (GLO): settings for the FM-1 itself rather than the scene. Open until GLO or HOME closes it (or another control
+ * is used); SELECT picks the row, PRESET, ALGO or a tap on SEL changes it. Kept in the settings, a moment after a change */
+#define NGLOB 1
+static const char *const GLOB_NAME[NGLOB] = { "USB AUDIO" };
+static const char *glob_value(int i)
+{
+    (void)i;
+    return set.usb_full ? "FULL LEVEL" : "VOLUME KNOB";
+}
+static void glob_say(void) { say_text(GLOB_NAME[ui.glob_row], glob_value(ui.glob_row)); }
+static void glob_open(void)
+{
+    ui.glob = 1;
+    ui.list_until = ui.envs_until = ui.panel_until = ui.pop_until = 0;
+    say_text("GLOBAL", "");
+    glob_say();
+}
+static void glob_close(void) { ui.glob = 0; }
+static void glob_change(int d)
+{
+    (void)d;                             /* (two values: either way goes to the other) */
+    switch (ui.glob_row) {
+    default:                             /* USB AUDIO: what the computer records follows the knob, or is always full */
+        set.usb_full ^= 1u;
+        plat_usb_audio_full(set.usb_full);
+        break;
+    }
+    autosave_at = plat_ms() + 1500u;
+    glob_say();
 }
 
 static void show_panel(int which)
@@ -779,6 +816,17 @@ static void input(void)
     static const uint8_t WK[16] = PLAT_WHITE_KEYS;
     int32_t d;
 
+    if (down >> B_GLO & 1u) { if (ui.glob) glob_close(); else glob_open(); }
+    else if (ui.glob) {                  /* the GLOBAL menu has SEL, HOME and the three right-hand knobs */
+        if (down >> B_HOME & 1u) { glob_close(); ui.home_used = 1; }
+        if (down >> B_SEL & 1u) { glob_change(1); ui.sel_used = 1; }
+        if ((d = enc(EN_SELECT)) != 0) { ui.glob_row = clamp(ui.glob_row + (int)d, 0, NGLOB - 1); glob_say(); }
+        if ((d = enc(EN_PRESET)) != 0) glob_change((int)d);
+        if ((d = enc(EN_ALGO)) != 0) glob_change((int)d);
+        down &= ~(1u << B_HOME | 1u << B_SEL);
+        if (down || (keys & ~ui.keys)) glob_close();   /* anything else: the menu shuts and that control does its job */
+    }
+
     if (down >> B_SEL & 1u) { ui.sel_used = 0; show_panel(PANEL_DENS); }
     if ((up >> B_SEL & 1u) && !ui.sel_used) { ui.panel_until = 0; select_layer(ui.sel + 1); }
     if (down >> B_HOME & 1u) { ui.home_used = 0; show_panel(PANEL_MACROS); }
@@ -793,6 +841,7 @@ static void input(void)
 
     for (int k = 0; k < 4; k++) {
         if ((d = enc(EN_K1 + k)) == 0) continue;
+        if (ui.glob) glob_close();
         if (btn >> B_HOME & 1u) { macro_step(k, (int)d); ui.home_used = 1; }
         else if (btn >> B_SEL & 1u) { dens_step(k, (int)d); ui.sel_used = 1; }
         else level_step(k, (int)d);
@@ -807,10 +856,10 @@ static void input(void)
     /* the lights: only what does something glows (bright while pressed); the rest stay dark. PLAY is green, lit while
      * playing; SAVE lit while there is something unsaved */
     {
-        const uint32_t used = 1u << B_HOME | 1u << B_SEL | 1u << B_REC | 1u << B_SAVE | 1u << B_OCTDN | 1u << B_OCTUP;
+        const uint32_t used = 1u << B_HOME | 1u << B_SEL | 1u << B_REC | 1u << B_SAVE | 1u << B_OCTDN | 1u << B_OCTUP | 1u << B_GLO;
         uint32_t wkeys = 0;
         for (int l = 0; l < NUM_LAYERS; l++) wkeys |= 1u << WK[l];
-        uint32_t lit = (btn & used) | (set_dirty ? 1u << B_SAVE : 0u) | (set.playing ? LED_PLAY_GREEN : 0u);
+        uint32_t lit = (btn & used) | (ui.glob ? 1u << B_GLO : 0u) | (set_dirty ? 1u << B_SAVE : 0u) | (set.playing ? LED_PLAY_GREEN : 0u);
         plat_lights(lit, keys & wkeys, used | LED_PLAY_GREEN, wkeys, 2);
     }
 }
@@ -1241,6 +1290,26 @@ static void draw_popup(void)
     if (ui.pop_4[0]) cv_text(120 - w4 / 2, y0 + 76, &FONT_S, ui.pop_4, C_SUB);
 }
 
+/* the GLOBAL menu: each row its name and value; under them what the chosen value does */
+static void draw_global(void)
+{
+    static const char *const HELP[2][2] = {
+        { "THE COMPUTER GETS", "THE VOLUME KNOB'S LEVEL" },
+        { "THE COMPUTER GETS FULL;", "THE KNOB: SPEAKER, PHONES" } };
+    frame_box(6, 4, 228, 34 + 6 * 21, C_TXT);
+    cv_text(14, 10, &FONT_S, "GLOBAL", C_TXT);
+    for (int i = 0; i < NGLOB; i++) {
+        int y = 32 + i * 21;
+        const char *v = glob_value(i);
+        uint16_t tc = C_SUB;
+        if (i == ui.glob_row) { cv_rect(10, y - 2, 220, 21, C_TXT); tc = C_BLACK; }
+        cv_text(16, y, &FONT_S, GLOB_NAME[i], tc);
+        cv_text(224 - text_w(&FONT_S, v), y, &FONT_S, v, tc);
+    }
+    for (int k = 0; k < 2; k++) cv_text(16, 76 + k * 20, &FONT_S, HELP[set.usb_full][k], C_SUB);
+    cv_text(16, 140, &FONT_S, "PRESET CHANGES  GLO CLOSES", RGB(110, 110, 110));
+}
+
 static void draw_view(void)
 {
     uint16_t bg = C_BLACK;
@@ -1252,7 +1321,8 @@ static void draw_view(void)
         int top = half ? VIEW_H / 2 : 0, h = half ? VIEW_H - VIEW_H / 2 : VIEW_H / 2;
         view_half(top, h, bg);
         draw_scene();
-        if (now < ui.list_until)
+        if (ui.glob) draw_global();
+        else if (now < ui.list_until)
             draw_list(LAYER_NAME[ui.list_layer], "PRESETS", LAYER_C[ui.list_layer], NUM_ENVS,
                       pos_of(patch_order[ui.list_layer], NUM_ENVS, set.cur.patch[ui.list_layer]), list_patch, ui.list_layer);
         else if (now < ui.envs_until)
@@ -1435,6 +1505,8 @@ void app_frame(void)
 int app_expect(const char *what, int *got)
 {
     if (!strcmp(what, "env")) *got = set.algo;
+    else if (!strcmp(what, "usbfull")) *got = set.usb_full;
+    else if (!strcmp(what, "global")) *got = ui.glob;
     else if (!strcmp(what, "jtravel")) *got = J.on && J.travelling;
     else if (!strcmp(what, "jheld")) *got = J.on && J.held;
     else if (!strcmp(what, "jat")) *got = J.on ? (J.dream ? J.to[L_LANDSCAPE] : J_ROUTE[J.at]) : -1;

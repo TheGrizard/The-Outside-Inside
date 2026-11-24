@@ -1,0 +1,42 @@
+# GLO: the GLOBAL menu, USB AUDIO (the volume knob's level, or full level to the computer), kept over a restart
+expect usbfull 0
+expect usb_audio_full 0
+wait 3000
+expect sel 1
+tap GLO
+wait 300
+expect global 1
+shot global.png
+turn PRESET 1
+wait 300
+expect usbfull 1
+expect usb_audio_full 1
+shot global_full.png
+tap SEL
+wait 200
+expect usbfull 0
+expect usb_audio_full 0
+expect sel 1
+turn ALGO -1
+wait 200
+expect usbfull 1
+expect env 4
+tap GLO
+wait 200
+expect global 0
+wait 2500
+reboot
+wait 3000
+expect usbfull 1
+expect usb_audio_full 1
+tap GLO
+wait 200
+tap HOME
+wait 200
+expect global 0
+tap GLO
+wait 200
+turn K1 2
+wait 200
+expect global 0
+expect level0 64
