@@ -175,6 +175,8 @@ Turn **ALGORITHM** for the list: JOURNEY and DREAM first, then the fifteen place
 Some of the sounds were matched by ear to real recordings: the sheep, the city's traffic, the industrial machines,
 the Arctic's seals, the savanna's lion, the desert's stillness and the village's church bells.
 
+![The city](img/city.png "CITY")
+![Industrial](img/industrial.png "INDUSTRIAL")
 ![Space](img/space.png "SPACE")
 ![The meadow](img/meadow.png "MEADOW")
 ![The village](img/village.png "VILLAGE")
